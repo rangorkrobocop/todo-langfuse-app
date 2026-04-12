@@ -1,0 +1,10 @@
+{
+  "name": "todo-langfuse-app",
+  "author": "New Author",
+  "workspaces": [
+    "server",
+    "client",
+    "exercises",
+    "shared"
+  ]
+}
