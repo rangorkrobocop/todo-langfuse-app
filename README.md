@@ -8,10 +8,6 @@ cd todo-langfuse-app
 npm install
 ```
 
-## Zod Exercises
-
-To start the Zod exercise, `cd` into the `exercises/zod` directory and run the tests: `npm test zod-exercises.test`. Note: You'll need to remove the `todos` in the test when you begin the
-
 ## Todo API Application
 
 To start the Todo application, both the client and server applications need to be started. VS Code users can use the provide `Start` task. Open the Command Palette > Run Task > Start. Alternatively, open two terminal tabs and run each project:
