@@ -3,11 +3,16 @@ import express from 'express';
 import type { Database } from 'sqlite';
 import { handleError } from './handle-error.js';
 
+/**
+ * Primary HTTP Server Configuration.
+ * Defines standard CRUD endpoints and the specialized Agent Intelligence endpoint.
+ */
 export async function createServer(database: Database) {
   const app = express();
   app.use(cors());
   app.use(express.json());
 
+  // Statement pre-compilation
   const incompleteTasks = await database.prepare('SELECT * FROM tasks whERE completed = 0');
   const completedTasks = await database.prepare('SELECT * FROM tasks WHERE completed = 1');
   const getTask = await database.prepare('SELECT * FROM tasks WHERE id = ?');
@@ -17,6 +22,7 @@ export async function createServer(database: Database) {
     `UPDATE tasks SET title = ?, description = ?, completed = ? WHERE id = ?`,
   );
 
+  /** List tasks based on completion status */
   app.get('/tasks', async (req, res) => {
     const { completed } = req.query;
     const query = completed === 'true' ? completedTasks : incompleteTasks;
@@ -29,7 +35,7 @@ export async function createServer(database: Database) {
     }
   });
 
-  // Get a specific task
+  /** Fetch a specific task by ID */
   app.get('/tasks/:id', async (req, res) => {
     try {
       const { id } = req.params;
@@ -43,6 +49,7 @@ export async function createServer(database: Database) {
     }
   });
 
+  /** Create a new task manually from the UI */
   app.post('/tasks', async (req, res) => {
     try {
       const task = req.body;
@@ -55,7 +62,7 @@ export async function createServer(database: Database) {
     }
   });
 
-  // Update a task
+  /** Update an existing task's properties */
   app.put('/tasks/:id', async (req, res) => {
     try {
       const { id } = req.params;
@@ -71,7 +78,7 @@ export async function createServer(database: Database) {
     }
   });
 
-  // Delete a task
+  /** Delete a task by ID */
   app.delete('/tasks/:id', async (req, res) => {
     try {
       const { id } = req.params;
@@ -82,12 +89,15 @@ export async function createServer(database: Database) {
     }
   });
 
-  // Agent interaction endpoint
+  /** 
+   * Agent Intelligence Endpoint (SSE)
+   * This endpoint processes natural language and streams thoughts/actions back to the UI.
+   */
   app.post('/api/agent', async (req, res) => {
     const { intent } = req.body;
     if (!intent) return res.status(400).json({ message: 'Intent is required' });
 
-    // We import this dynamically or assume it's imported at the top
+    // Dynamic import to keep main bundle light
     const { handleAgentAction } = await import('./agent.js');
     await handleAgentAction(database, intent, res);
   });

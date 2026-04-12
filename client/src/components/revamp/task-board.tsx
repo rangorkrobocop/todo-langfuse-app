@@ -5,6 +5,10 @@ import { Plus, Filter } from 'lucide-react';
 import { useToggle } from '@/utilities/use-toggle';
 import { TaskForm } from '../task-form';
 
+/**
+ * Main Task Management Workspace.
+ * Orchestrates the task list, manual creation form, and filter controls.
+ */
 export const RevampTaskBoard = () => {
     const { tasks } = useTasks();
     const [showCreate, toggleCreate] = useToggle(false);

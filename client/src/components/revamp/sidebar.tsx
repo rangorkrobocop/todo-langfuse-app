@@ -2,6 +2,10 @@ import React from 'react';
 import { useSearchParams } from '@/utilities/use-search-params';
 import { Inbox, CheckCircle, Settings, HelpCircle, Layout } from 'lucide-react';
 
+/**
+ * Application Sidebar Navigation.
+ * Handles view switching between Incomplete and Completed tasks.
+ */
 export const RevampSidebar = () => {
     const [searchParams] = useSearchParams();
     const completed = searchParams.get('completed') === 'true';

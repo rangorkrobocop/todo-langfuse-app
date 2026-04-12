@@ -11,6 +11,11 @@ interface AgentConsoleProps {
     isLoading: boolean;
 }
 
+/**
+ * Operator Intelligence Console (The Agentic Command Center).
+ * Displays a persistent, stateful chat history between the user (Operator) 
+ * and the LLM (AI Node). Shows live streaming text and active tool executions.
+ */
 export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSendMessage, isLoading }: AgentConsoleProps) => {
     const [val, setVal] = React.useState('');
     const bottomRef = useRef<HTMLDivElement>(null);
