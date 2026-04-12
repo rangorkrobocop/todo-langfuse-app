@@ -14,3 +14,11 @@ export type PartialTask = Partial<Omit<Task, 'id'>>;
 export interface Error {
   message: string;
 }
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: string;
+  tools?: string[];
+}

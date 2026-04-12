@@ -56,7 +56,6 @@ export const TaskForm = ({ task, onSubmit, className, ...props }: TaskFormProps)
         onChange={(e) => setTitle(e.target.value)}
         placeholder="What needs to be done?"
         required
-        className="!bg-white dark:!bg-slate-900"
       />
 
       <Input
@@ -65,7 +64,6 @@ export const TaskForm = ({ task, onSubmit, className, ...props }: TaskFormProps)
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         placeholder="Add some details…"
-        className="!bg-white dark:!bg-slate-900"
       />
 
       <div aria-label="Form Controls" className="flex justify-end gap-3" role="group">

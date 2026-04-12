@@ -45,14 +45,17 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     setLoading(true);
 
     try {
-      const tasks = await api.fetchTasks(completed);
+      // Always get the latest search params from windows to avoid stale closures
+      const currentParams = new URLSearchParams(window.location.search);
+      const isCompletedView = currentParams.get('completed') === 'true';
+      const tasks = await api.fetchTasks(isCompletedView);
       setTasks(tasks);
     } catch (error) {
       setError(error as Error);
     }
 
     setLoading(false);
-  }, [setTasks, setLoading, setError, completed]);
+  }, [setTasks, setLoading, setError]);
 
   const createTask = useCallback(
     async (task: PartialTask) => {
