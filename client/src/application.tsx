@@ -5,29 +5,90 @@ import { TaskForm } from './components/task-form';
 import { IntentBar } from './components/intent-bar';
 import { useTasks } from './contexts/task-context';
 
+import { AgentStatus, AgentState } from './components/agent-status';
+
 export const Application = () => {
   const { tasks, fetchTasks } = useTasks();
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
+  const [agentState, setAgentState] = useState<AgentState>({
+    isActive: false, textStream: '', activeTools: [], completedTools: []
+  });
 
   const handleAgentIntent = async (message: string) => {
     setIsAgentProcessing(true);
+    setAgentState({ isActive: true, textStream: '', activeTools: [], completedTools: [] });
 
     try {
-      console.log("Agent processing intent:", message);
-      await new Promise(res => setTimeout(res, 1200));
+      const { API_URL } = await import('./api');
+      const { parseAGUIStreamedLine } = await import('./utilities/ag-ui');
 
-      if (message.toLowerCase().includes('clear')) {
-        console.log("Agent Action: Cleanup initiated.");
+      const response = await fetch(`${API_URL}/api/agent`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ intent: message })
+      });
+
+      if (!response.body) throw new Error('No response body');
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          const lines = chunk.split('\n');
+          for (const line of lines) {
+            const event = parseAGUIStreamedLine(line);
+            if (event) {
+              setAgentState(prev => {
+                const next = { ...prev };
+                if (event.type === 'TOOL_CALL_START') {
+                  next.activeTools = [...next.activeTools, event.toolName];
+
+                  if (event.toolName === 'navigateToView' && event.args && event.args.view) {
+                    if (event.args.view === 'completed') {
+                      window.history.pushState({}, '', '?completed=true');
+                      window.dispatchEvent(new Event('popstate'));
+                    } else if (event.args.view === 'incomplete') {
+                      window.history.pushState({}, '', '/');
+                      window.dispatchEvent(new Event('popstate'));
+                    }
+                    setTimeout(() => fetchTasks(), 0);
+                  }
+                }
+                if (event.type === 'TOOL_CALL_RESULT') {
+                  // Simply mark the tool as completed
+                  const toolName = event.toolCallId.replace('call_', '');
+                  next.activeTools = next.activeTools.filter(t => t !== toolName);
+                  if (!next.completedTools.includes(toolName)) {
+                    next.completedTools = [...next.completedTools, toolName];
+                  }
+                }
+                if (event.type === 'TEXT_MESSAGE_CONTENT') {
+                  next.textStream += event.delta;
+                }
+                if (event.type === 'RUN_ERROR') {
+                  next.error = event.error;
+                }
+                return next;
+              });
+            }
+          }
+        }
       }
 
       await fetchTasks();
-    } catch (error) {
+    } catch (error: any) {
       console.error("Agentic flow error:", error);
+      setAgentState(prev => ({ ...prev, error: error.message }));
     } finally {
       setIsAgentProcessing(false);
+      setTimeout(() => setAgentState(prev => ({ ...prev, isActive: false })), 5000);
     }
   };
-
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] transition-colors relative overflow-hidden">
       {/* Mesh Gradient Background */}
@@ -38,12 +99,14 @@ export const Application = () => {
         <Header />
 
         <main className="max-w-4xl mx-auto px-6 pb-24">
-          <div className="mb-12">
+          <div className="mb-8">
             <IntentBar
               onSendMessage={handleAgentIntent}
               isLoading={isAgentProcessing}
             />
           </div>
+
+          <AgentStatus state={agentState} />
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
             <div className="md:col-span-2">

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 
 const getSearchParams = () => {
   const searchParams = new URLSearchParams(window.location.search);
@@ -11,6 +11,12 @@ const getSearchParams = () => {
  */
 export const useSearchParams = () => {
   const [searchParams, setSearchParams] = useState<URLSearchParams>(getSearchParams());
+
+  useEffect(() => {
+    const handlePopState = () => setSearchParams(getSearchParams());
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const updateSearchParams = useCallback(
     () => setSearchParams(getSearchParams()),

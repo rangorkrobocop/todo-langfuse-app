@@ -1,6 +1,6 @@
 import { PartialTask, Task } from './types';
 
-const API_URL = 'http://localhost:4001';
+export const API_URL = 'http://localhost:4001';
 
 export const fetchTasks = async (showCompleted: boolean): Promise<Task[]> => {
   const url = new URL(`/tasks`, API_URL);

@@ -65,7 +65,7 @@ export async function createServer(database: Database) {
       const task = { ...previous, ...updates };
 
       await updateTask.run([task.title, task.description, task.completed, id]);
-      return res.status(200).json({message: 'Task updated successfully'});
+      return res.status(200).json({ message: 'Task updated successfully' });
     } catch (error) {
       return handleError(req, res, error);
     }
@@ -80,6 +80,16 @@ export async function createServer(database: Database) {
     } catch (error) {
       return handleError(req, res, error);
     }
+  });
+
+  // Agent interaction endpoint
+  app.post('/api/agent', async (req, res) => {
+    const { intent } = req.body;
+    if (!intent) return res.status(400).json({ message: 'Intent is required' });
+
+    // We import this dynamically or assume it's imported at the top
+    const { handleAgentAction } = await import('./agent.js');
+    await handleAgentAction(database, intent, res);
   });
 
   return app;

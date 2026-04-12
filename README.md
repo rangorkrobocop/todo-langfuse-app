@@ -24,5 +24,12 @@ npm run dev
 # Terminal 2: Server App
 cd server
 npm run dev
-
 ```
+
+### Gemini Agent Feature
+
+The application includes an integrated **AG-UI agent** that can perform task management. To enable it, you must configure your Gemini API Key.
+1. Navigate to the `server/` directory.
+2. Create a file named `.env`.
+3. Add your key: `GEMINI_API_KEY=your_copied_api_key_here`. 
+*(Note: Your environment variables are ignored by git to keep your key safe).*
