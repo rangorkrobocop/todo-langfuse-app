@@ -18,6 +18,7 @@ type TaskContextType = {
   loading: boolean;
   error: Error | null;
   createTask: (task: PartialTask) => Promise<void>;
+  fetchTasks: () => Promise<void>;
   updateTask: (id: string, task: PartialTask) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
 };
@@ -104,6 +105,7 @@ export const TaskProvider = ({ children }: { children: ReactNode }) => {
     loading,
     error,
     createTask,
+    fetchTasks,
     updateTask,
     deleteTask,
   };
