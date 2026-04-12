@@ -16,14 +16,14 @@ export const Input = ({
   return (
     <label
       htmlFor={id}
-      className="block text-sm font-medium text-slate-700 dark:text-slate-300"
+      className="block text-sm font-semibold text-[var(--text-secondary)] mb-2"
       id={`${id}-label`}
     >
       <div
         className={cx(
           'flex items-center gap-1',
           required &&
-            "after:h-1.5 after:w-1.5 after:rounded-full after:bg-red-600 after:content-['']",
+          "after:h-1 after:w-1 after:rounded-full after:bg-[var(--accent)] after:content-['']",
         )}
       >
         {label}
@@ -33,9 +33,7 @@ export const Input = ({
       <input
         id={id}
         className={cx(
-          'peer mt-1 block w-full rounded-md p-2 ring-1 transition-colors duration-200',
-          'bg-white text-slate-900 ring-purple-900 dark:bg-slate-700 dark:text-white dark:ring-slate-900',
-          'focus:border-transparent focus:ring-2 focus:ring-purple-500 focus:outline-none',
+          'ag-input mt-1',
           className,
         )}
         required={required}

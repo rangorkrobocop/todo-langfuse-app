@@ -24,7 +24,7 @@ export const TaskForm = ({ task, onSubmit, className, ...props }: TaskFormProps)
     const taskData = Object.fromEntries(data.entries()) as PartialTask;
 
     if (task) {
-      updateTask(task.id, { ...task, ...taskData });
+      updateTask(task.id.toString(), { ...task, ...taskData });
     } else {
       createTask(taskData);
     }
@@ -32,14 +32,16 @@ export const TaskForm = ({ task, onSubmit, className, ...props }: TaskFormProps)
     if (onSubmit) onSubmit(e);
 
     // Reset form fields
-    setTitle('');
-    setDescription('');
+    if (!task) {
+      setTitle('');
+      setDescription('');
+    }
   };
 
   return (
     <form
       className={cx(
-        'space-y-4 rounded-lg bg-slate-50 transition-colors duration-200 dark:bg-slate-800',
+        'space-y-6',
         className,
       )}
       onSubmit={handleSubmit}
@@ -47,25 +49,27 @@ export const TaskForm = ({ task, onSubmit, className, ...props }: TaskFormProps)
       {...props}
     >
       <Input
-        label="Title"
+        label="Task Title"
         type="text"
         name="title"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Title…"
+        placeholder="What needs to be done?"
         required
+        className="!bg-white dark:!bg-slate-900"
       />
 
       <Input
-        label="Description"
+        label="Description (Optional)"
         name="description"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Description…"
+        placeholder="Add some details…"
+        className="!bg-white dark:!bg-slate-900"
       />
 
-      <div aria-label="Form Controls" className="flex justify-end space-x-2" role="group">
-        <Button type="submit" variant="primary">
+      <div aria-label="Form Controls" className="flex justify-end gap-3" role="group">
+        <Button type="submit" variant="primary" className="w-full sm:w-auto">
           {task ? 'Update Task' : 'Create Task'}
         </Button>
       </div>
