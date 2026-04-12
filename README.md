@@ -1,8 +1,3 @@
-## Fullstack TypeScript, v2 Course
-
-This is a companion repository for the [Fullstack TypeScript, v2](https://frontendmasters.com/courses/fullstack-typescript-v2) course on Frontend Masters.
-[![Frontend Masters](https://static.frontendmasters.com/assets/brand/logos/full.png)](https://frontendmasters.com/courses/fullstack-typescript-v2)
-
 ## Setup Instructions
 
 This repo requires Node.js version 22 or higher. Clone the repo and install the dependencies:
