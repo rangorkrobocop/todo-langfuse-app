@@ -1,9 +1,16 @@
 import { GoogleGenerativeAI, SchemaType, Tool } from '@google/generative-ai';
+import { Langfuse } from 'langfuse';
 import type { Database } from 'sqlite';
 import type { Response } from 'express';
 
 // Ensure the API key is passed or available via environment variable
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
+
+const langfuse = new Langfuse({
+    publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+    secretKey: process.env.LANGFUSE_SECRET_KEY,
+    baseUrl: process.env.LANGFUSE_BASEURL || 'https://cloud.langfuse.com'
+});
 
 /**
  * Handles agent interactions by processing user intent and managing autonomous tool execution.
@@ -25,6 +32,14 @@ export const handleAgentAction = async (database: Database, intent: string, res:
     console.log(`\n--- New Agent Interaction ---`);
     console.log(`[INCOMING INTENT]: "${intent}"\n`);
 
+    const runId = `run_${Date.now()}`;
+    const trace = langfuse.trace({
+        id: runId,
+        name: "Agent Interaction",
+        input: intent,
+        tags: ["gemini", "agent"]
+    });
+
     /** Helper to push events to the client in standard SSE format */
     const sendEvent = (event: any) => {
         const payload = JSON.stringify(event);
@@ -32,7 +47,6 @@ export const handleAgentAction = async (database: Database, intent: string, res:
         res.write(`data: ${payload}\n\n`);
     };
 
-    const runId = `run_${Date.now()}`;
     sendEvent({ type: 'RUN_STARTED', runId, timestamp: new Date().toISOString() });
 
     // Pre-prepare reusable SQL statements for efficiency
@@ -129,16 +143,18 @@ export const handleAgentAction = async (database: Database, intent: string, res:
 
         // Fetch current state to provide fresh context for the model's awareness
         const tasks = await getIncompleteTasks.all();
-        const model = ai.getGenerativeModel({
-            model: 'gemini-2.5-flash',
-            tools: tools,
-            systemInstruction: `You are a helpful task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(tasks)}. 
+        const systemInstruction = `You are a helpful task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(tasks)}. 
             
             IMPORTANT:
             1. After every tool call, you MUST provide a natural language summary or confirmation to the user in text.
             2. For DESTRUCTIVE ACTIONS (deleteTask, clearCompletedTasks), if you receive a "Confirmation required" response, you MUST ask the user to confirm the action using the provided UI button. 
             3. Do NOT proceed with destructive actions unless the user explicitly confirms.
-            4. Never end with just a tool result.`,
+            4. Never end with just a tool result.`;
+            
+        const model = ai.getGenerativeModel({
+            model: 'gemini-2.5-flash',
+            tools: tools,
+            systemInstruction
         });
 
         const chat = model.startChat({});
@@ -169,16 +185,29 @@ export const handleAgentAction = async (database: Database, intent: string, res:
         // Turn Management Loop
         let currentInput: string | any[] = intent;
         let isProcessing = true;
+        let finalResponseText = '';
 
         while (isProcessing) {
             isProcessing = false;
             const toolResponses: any[] = [];
+            
+            const generation = trace.generation({
+                name: "gemini-turn",
+                model: "gemini-2.5-flash",
+                input: currentInput,
+                modelParameters: { systemInstruction }
+            });
+            
+            let turnText = '';
+            let turnToolCalls: any[] = [];
+            
             const interaction = await sendWithRetry(currentInput);
 
             for await (const chunk of interaction.stream) {
                 // 1. Handle Tool Execution Requests
                 const functionCalls = chunk.functionCalls();
                 if (functionCalls && functionCalls.length > 0) {
+                    turnToolCalls.push(...functionCalls);
                     for (const toolCall of functionCalls) {
                         sendEvent({
                             type: 'TOOL_CALL_START',
@@ -258,13 +287,21 @@ export const handleAgentAction = async (database: Database, intent: string, res:
 
                 // 2. Handle Text Content
                 if (chunk.text && chunk.text()) {
+                    const textContent = chunk.text();
+                    turnText += textContent;
+                    finalResponseText += textContent;
+                    
                     if (!textStarted) {
                         sendEvent({ type: 'TEXT_MESSAGE_START', messageId: `msg_${Date.now()}`, role: 'assistant' });
                         textStarted = true;
                     }
-                    sendEvent({ type: 'TEXT_MESSAGE_CONTENT', messageId: `msg_${Date.now()}`, delta: chunk.text() });
+                    sendEvent({ type: 'TEXT_MESSAGE_CONTENT', messageId: `msg_${Date.now()}`, delta: textContent });
                 }
             }
+
+            generation.end({
+                output: { text: turnText, toolCalls: turnToolCalls }
+            });
 
             // If tools were called, we must provide the answers in the next turn
             if (toolResponses.length > 0) {
@@ -273,12 +310,16 @@ export const handleAgentAction = async (database: Database, intent: string, res:
             }
         }
 
+        trace.update({ output: finalResponseText });
+        
         // Signal completion
         sendEvent({ type: 'RUN_FINISHED', runId, finishReason: 'completed' });
     } catch (error: any) {
         console.error('Agent error:', error);
+        trace.update({ level: 'ERROR', statusMessage: error.message });
         sendEvent({ type: 'RUN_ERROR', runId, error: error.message });
     } finally {
+        await langfuse.flushAsync();
         res.write('data: [DONE]\n\n');
         res.end();
     }

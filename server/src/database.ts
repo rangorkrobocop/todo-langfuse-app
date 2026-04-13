@@ -5,7 +5,9 @@ import sqlite3 from 'sqlite3';
 let databaseInstance: Awaited<ReturnType<typeof open>> | null = null;
 
 export async function getDatabase(
-  filename = process.env.NODE_ENV === 'test' ? ':memory:' : './database.sqlite',
+  filename = process.env.NODE_ENV === 'test'
+    ? ':memory:'
+    : process.env.DATABASE_PATH || './database.sqlite',
   forceNew = false
 ) {
   // For tests, allow forcing a new database instance
