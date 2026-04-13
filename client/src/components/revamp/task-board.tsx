@@ -15,49 +15,53 @@ export const RevampTaskBoard = () => {
     const [showFilters, toggleFilters] = useToggle(false);
 
     return (
-        <div className="revamp-content p-8">
-            <header className="flex items-center justify-between mb-8">
+        <div className="revamp-content">
+            <header className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
                 <div>
-                    <h2 className="text-3xl font-black mb-1">Your Space</h2>
-                    <p className="text-sm text-[var(--text-dim)]">Manage your tasks effortlessly.</p>
+                    <h2 className="text-4xl font-extrabold tracking-tight text-slate-900 mb-2">Workspace</h2>
+                    <p className="text-slate-500 font-medium">Keep your focus. Get things done.</p>
                 </div>
 
-                <div className="flex gap-2 relative">
-                    <button
-                        onClick={toggleFilters}
-                        className={`nav-item border border-[var(--border-line)] !px-3 ${showFilters ? 'bg-[var(--panel-hover)]' : ''}`}
-                    >
-                        <Filter className="w-4 h-4" />
-                    </button>
+                <div className="flex items-center gap-3">
+                    <div className="relative">
+                        <button
+                            onClick={toggleFilters}
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-semibold transition-all hover:bg-slate-50 ${showFilters ? 'bg-slate-100 border-slate-300' : 'bg-white'}`}
+                        >
+                            <Filter className="w-4 h-4 text-slate-400" />
+                            <span>Filter</span>
+                        </button>
 
-                    {showFilters && (
-                        <div className="absolute top-full right-0 mt-2 w-48 bg-[var(--panel-bg)] border border-[var(--border-line)] rounded-xl shadow-2xl z-50 p-2 animate-fade-in">
-                            <button className="nav-item w-full text-left">Newest First</button>
-                            <button className="nav-item w-full text-left">Oldest First</button>
-                            <button className="nav-item w-full text-left">Alphabetical</button>
-                        </div>
-                    )}
+                        {showFilters && (
+                            <div className="absolute top-full right-0 mt-3 w-56 bg-white border border-slate-200 rounded-2xl shadow-xl z-50 p-2 animate-fade-in">
+                                <button className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Newest First</button>
+                                <button className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg">Oldest First</button>
+                                <button className="flex items-center w-full px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50 rounded-lg border-t border-slate-100 mt-1 pt-3">Completed</button>
+                            </div>
+                        )}
+                    </div>
 
                     <button
                         onClick={toggleCreate}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-100 hover:scale-[1.02] active:scale-[0.98]"
                     >
-                        <Plus className="w-4 h-4" /> New Task
+                        <Plus className="w-4 h-4" />
+                        <span>Add Task</span>
                     </button>
                 </div>
             </header>
 
             {showCreate && (
-                <div className="mb-8 p-6 bg-[var(--panel-bg)] border border-indigo-500/30 rounded-xl animate-fade-in">
-                    <div className="flex justify-between mb-4">
-                        <span className="text-xs font-black uppercase tracking-widest text-indigo-400">Quick Draft</span>
-                        <button onClick={toggleCreate} className="text-xs text-[var(--text-dim)]">Discard</button>
+                <div className="mb-10 p-8 bg-white border border-indigo-100 rounded-3xl shadow-sm animate-fade-in">
+                    <div className="flex justify-between items-center mb-6">
+                        <span className="text-[11px] font-bold uppercase tracking-[0.2em] text-indigo-500">New Task</span>
+                        <button onClick={toggleCreate} className="text-xs font-bold text-slate-400 hover:text-slate-600 transition-colors">Dismiss</button>
                     </div>
                     <TaskForm onSubmit={() => toggleCreate()} />
                 </div>
             )}
 
-            <div className="flex-1">
+            <div className="flex-1 space-y-4">
                 <TaskList />
             </div>
         </div>

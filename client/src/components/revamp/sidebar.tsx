@@ -1,50 +1,50 @@
 import React from 'react';
 import { useSearchParams } from '@/utilities/use-search-params';
-import { Inbox, CheckCircle, Settings, HelpCircle, Layout } from 'lucide-react';
+import { Inbox, CheckCircle, Target, Layout } from 'lucide-react';
 
-/**
- * Application Sidebar Navigation.
- * Handles view switching between Incomplete and Completed tasks.
- */
 export const RevampSidebar = () => {
     const [searchParams] = useSearchParams();
     const completed = searchParams.get('completed') === 'true';
 
     const navItems = [
-        { icon: Inbox, label: 'Incomplete', active: !completed, href: '/' },
+        { icon: Inbox, label: 'Tasks', active: !completed, href: '/' },
         { icon: CheckCircle, label: 'Completed', active: completed, href: '/?completed=true' },
     ];
 
+    const navigate = (e: React.MouseEvent, href: string) => {
+        e.preventDefault();
+        window.history.pushState({}, '', href);
+        window.dispatchEvent(new Event('popstate'));
+    };
+
     return (
         <aside className="revamp-sidebar">
-            <div className="flex items-center gap-3 mb-10 px-2">
-                <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center shadow-[0_0_20px_rgba(99,102,241,0.4)]">
-                    <Layout className="text-white w-5 h-5" />
+            <div className="flex items-center gap-2 mr-auto">
+                <div className="w-10 h-10 bg-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                    <Target className="w-5 h-5 text-white" />
                 </div>
-                <span className="font-black text-lg tracking-tight">BusyBee</span>
+                <h1 className="text-lg font-black tracking-tight text-slate-900 ml-2">ZenDo</h1>
             </div>
 
-            <nav className="flex-1 space-y-1">
+            <nav className="flex items-center gap-1">
                 {navItems.map((item) => (
                     <a
                         key={item.label}
                         href={item.href}
-                        onClick={(e) => {
-                            e.preventDefault();
-                            window.history.pushState({}, '', item.href);
-                            window.dispatchEvent(new Event('popstate'));
-                        }}
+                        onClick={(e) => navigate(e, item.href)}
                         className={`nav-item ${item.active ? 'active' : ''}`}
                     >
                         <item.icon className="w-4 h-4" />
-                        {item.label}
+                        <span>{item.label}</span>
                     </a>
                 ))}
             </nav>
 
-            <div className="mt-auto pt-6 border-t border-[var(--border-line)] space-y-1">
-                <a href="#" className="nav-item"><HelpCircle className="w-4 h-4" /> Help Center</a>
-                <a href="#" className="nav-item"><Settings className="w-4 h-4" /> Settings</a>
+            <div className="ml-auto flex items-center gap-4">
+                <div className="hidden md:flex flex-col items-end">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest leading-none mb-1">Status</span>
+                    <span className="text-xs font-bold text-indigo-600">Stable v2.5</span>
+                </div>
             </div>
         </aside>
     );

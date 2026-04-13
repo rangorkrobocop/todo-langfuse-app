@@ -1,16 +1,22 @@
 @import 'tailwindcss';
 
 :root {
-  --app-bg: #050505;
-  --panel-bg: #0D0D0D;
-  --panel-hover: #151515;
-  --text-main: #FFFFFF;
-  --text-dim: #A1A1AA;
-  --brand: #6366F1;
-  --brand-dim: rgba(99, 102, 241, 0.1);
-  --border-line: rgba(255, 255, 255, 0.08);
+  --app-bg: #F8FAFC;
+  --panel-bg: #FFFFFF;
+  --panel-hover: #F1F5F9;
+  --text-main: #1E293B;
+  --text-dim: #64748B;
+  --brand: #4F46E5;
+  --brand-dim: rgba(79, 70, 229, 0.05);
+  --border-line: rgba(0, 0, 0, 0.05);
   --danger: #EF4444;
   --success: #10B981;
+
+  /* Compatibility Aliases */
+  --text-primary: var(--text-main);
+  --text-secondary: var(--text-dim);
+  --border: var(--border-line);
+  --accent: var(--brand);
 }
 
 body {
@@ -19,51 +25,76 @@ body {
   background-color: var(--app-bg);
   color: var(--text-main);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  overflow-x: hidden;
 }
 
 .revamp-layout {
-  display: grid;
-  grid-template-columns: 260px 1fr 420px;
-  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
   width: 100vw;
+  align-items: center;
 }
 
 .revamp-sidebar {
   background-color: var(--panel-bg);
-  border-right: 1px solid var(--border-line);
+  border-bottom: 1px solid var(--border-line);
+  width: 100%;
   display: flex;
-  flex-direction: column;
-  padding: 32px 24px;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 16px 32px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .revamp-content {
-  background-color: var(--app-bg);
+  background-color: transparent;
+  width: 100%;
+  max-width: 800px;
   display: flex;
   flex-direction: column;
-  overflow-y: auto;
-  position: relative;
+  padding: 48px 24px;
 }
 
 .revamp-agent {
-  background-color: var(--panel-bg);
-  border-left: 1px solid var(--border-line);
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 400px;
+  height: 600px;
+  background-color: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-line);
+  border-radius: 24px;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transform: translateY(0);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.revamp-agent.hidden {
+  transform: translateY(calc(100% + 40px));
 }
 
 .nav-item {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 100px;
   color: var(--text-dim);
   text-decoration: none;
   font-size: 14px;
-  font-weight: 600;
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
 .nav-item:hover,
@@ -77,28 +108,29 @@ body {
   background-color: var(--brand-dim);
 }
 
-.task-card {
+.task-card, .ag-card {
   background-color: var(--panel-bg);
   border: 1px solid var(--border-line);
-  padding: 20px;
-  border-radius: 16px;
-  margin-bottom: 16px;
-  transition: all 0.3s;
+  padding: 24px;
+  border-radius: 20px;
+  margin-bottom: 20px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.02), 0 2px 4px -1px rgba(0, 0, 0, 0.01);
+  list-style: none;
 }
 
-.task-card:hover {
-  border-color: rgba(99, 102, 241, 0.3);
-  transform: translateY(-2px);
-  box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+.task-card:hover, .ag-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 10px 10px -5px rgba(0, 0, 0, 0.02);
+  border-color: var(--brand-dim);
 }
 
 .chat-bubble {
-  padding: 14px 18px;
-  border-radius: 18px;
+  padding: 12px 18px;
+  border-radius: 20px;
   font-size: 14px;
-  line-height: 1.6;
+  line-height: 1.5;
   max-width: 85%;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
 }
 
 .chat-bubble.user {
@@ -110,7 +142,6 @@ body {
 
 .chat-bubble.ai {
   background-color: var(--panel-hover);
-  border: 1px solid var(--border-line);
   color: var(--text-main);
   align-self: flex-start;
   border-bottom-left-radius: 4px;
@@ -126,12 +157,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 0, 0, 0.05);
   border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(0, 0, 0, 0.1);
 }
 
 @keyframes fadeIn {

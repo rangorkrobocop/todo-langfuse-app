@@ -1,16 +1,16 @@
-# 🐝 BusyBee — Agentic Task Management
+# 🧘 ZenDo — Zen Minimalist Task Management
 
-BusyBee is a professional, AI-powered task management dashboard built with React, Node.js, and Google Gemini. It features a stateful "Operator Console" that lets you manage your tasks using natural language commands.
+ZenDo is a serene, AI-powered task management workspace built with React, Node.js, and Google Gemini. It features a focused, single-column design and a floating "AI Assistant" that lets you manage your tasks using natural language commands.
 
 ---
 
 ## ✨ Features
 
-- **Intelligence Console** — Natural language task management powered by Gemini 2.5 Flash
-- **Autonomous Tool Calling** — The agent can create, update, complete, delete, and navigate tasks on your behalf
-- **Real-time Streaming** — Agent responses stream live via Server-Sent Events (SSE)
-- **Stateful Chat History** — The operator console maintains a full conversation history per session
-- **Dark Mode UI** — A premium "Deep Space" three-column dashboard design
+- **Focused Workspace** — A clean, single-column layout designed to minimize distractions and keep you in the flow.
+- **AI Assistant** — A glassmorphic floating console powered by Gemini 2.5 Flash for natural language task management.
+- **Autonomous Tool Calling** — The agent can create, update, complete, delete, and navigate tasks on your behalf.
+- **Real-time Streaming** — Agent responses stream live via Server-Sent Events (SSE).
+- **Zen Minimalist UI** — A premium light-themed aesthetic with soft shadows, glassmorphism, and smooth animations.
 
 ---
 
@@ -38,32 +38,11 @@ npm install
 GEMINI_API_KEY=your_api_key_here
 ```
 
-> **Note:** Your `.env` file is gitignored and will never be committed.
-
-### Run the Application
-
-Open two terminal tabs and run:
-
-```bash
-# Terminal 1: Start the Client (React/Vite)
-cd client
-npm run dev
-```
-
-```bash
-# Terminal 2: Start the Server (Express/SQLite)
-cd server
-npm run dev
-```
-
-- **Client:** http://localhost:4000
-- **Server API:** http://localhost:4001
-
 ---
 
-## 🤖 Using the Intelligence Console
+## 🤖 Using the AI Assistant
 
-The right-hand panel is your **Operator Console**. Type natural language commands to control your tasks:
+Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI Assistant**. Type natural language commands to control your workspace:
 
 | Command | What it does |
 |---|---|
@@ -82,9 +61,9 @@ The right-hand panel is your **Operator Console**. Type natural language command
 todo-langfuse-app/
 ├── client/          # React + Vite frontend
 │   └── src/
-│       ├── components/revamp/   # Three-column dashboard UI
-│       ├── application.tsx      # Root app + agent event orchestrator
-│       └── utilities/ag-ui.ts  # SSE client for agent streaming
+│       ├── components/revamp/   # Zen Minimalist components
+│       ├── application.tsx      # Single-column layout + floating assistant
+│       └── utilities/ag-ui.ts   # SSE client for agent streaming
 │
 └── server/          # Express + SQLite backend
     └── src/
@@ -102,5 +81,5 @@ todo-langfuse-app/
 | Frontend | React 18, Vite, Framer Motion, Lucide Icons |
 | Backend | Node.js, Express, SQLite |
 | AI | Google Gemini 2.5 Flash (`@google/generative-ai`) |
-| Styling | Vanilla CSS (Deep Space dark theme) |
+| Styling | Vanilla CSS (Zen Minimalist Light theme) |
 | Runtime | `tsx` (TypeScript execution) |

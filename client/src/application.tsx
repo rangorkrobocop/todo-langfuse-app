@@ -14,6 +14,7 @@ export const Application = () => {
 
   // Agentic UI State
   const [isAgentProcessing, setIsAgentProcessing] = useState(false);
+  const [isAgentVisible, setIsAgentVisible] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingText, setStreamingText] = useState('');
   const [activeTools, setActiveTools] = useState<string[]>([]);
@@ -138,14 +139,27 @@ export const Application = () => {
       {/* 2. Core Workspace */}
       <RevampTaskBoard />
 
-      {/* 3. Operator Intelligence Console */}
-      <RevampAgentConsole
-        messages={messages}
-        streamingText={streamingText}
-        activeTools={activeTools}
-        onSendMessage={handleAgentIntent}
-        isLoading={isAgentProcessing}
-      />
+      {/* 3. Operator Intelligence Console (Floating) */}
+      <div className={`revamp-agent ${!isAgentVisible ? 'hidden' : ''}`}>
+        <RevampAgentConsole
+          messages={messages}
+          streamingText={streamingText}
+          activeTools={activeTools}
+          onSendMessage={handleAgentIntent}
+          isLoading={isAgentProcessing}
+          onClose={() => setIsAgentVisible(false)}
+        />
+      </div>
+
+      {/* Floating Toggle for Agent */}
+      {!isAgentVisible && (
+        <button
+          onClick={() => setIsAgentVisible(true)}
+          className="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 text-white rounded-full shadow-xl flex items-center justify-center hover:scale-110 transition-transform z-[1001]"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-sparkles"><path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/></svg>
+        </button>
+      )}
     </div>
   );
 };
