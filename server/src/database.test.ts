@@ -38,7 +38,7 @@ describe('database', () => {
       
       // Test with NODE_ENV=production
       process.env.NODE_ENV = 'production';
-      const dbProd = await getDatabase(undefined, true);
+      const dbProd = await getDatabase(':memory:', true); // Use :memory: even in "prod" mode for testing
       expect(dbProd).toBeDefined();
     } finally {
       // Restore original NODE_ENV

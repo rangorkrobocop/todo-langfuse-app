@@ -4,6 +4,7 @@ export type AGUIEvent =
     | { type: 'TEXT_MESSAGE_CONTENT'; messageId: string; delta: string }
     | { type: 'TOOL_CALL_START'; toolCallId: string; toolName: string; args?: any }
     | { type: 'TOOL_CALL_RESULT'; toolCallId: string; result: string }
+    | { type: 'CONFIRMATION_REQUIRED'; tool: string; args: any }
     | { type: 'RUN_FINISHED'; runId: string; finishReason: string; usage?: any }
     | { type: 'RUN_ERROR'; runId: string; error: string };
 

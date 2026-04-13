@@ -42,7 +42,7 @@ export const handleAgentAction = async (database: Database, intent: string, res:
     const createTask = await database.prepare('INSERT INTO tasks (title, description) VALUES (?, ?)');
     const updateTask = await database.prepare('UPDATE tasks SET title = ?, description = ? WHERE id = ?');
     const completeTask = await database.prepare('UPDATE tasks SET completed = 1 WHERE id = ?');
-    const deleteTask = await database.prepare('DELETE FROM tasks WHERE id = ?');
+    const deleteTask = await database.prepare('DELETE FROM tasks WHERE title = ?');
 
     try {
         /** Define the capabilities (tools) available to the LLM */
@@ -51,7 +51,13 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                 functionDeclarations: [
                     {
                         name: 'clearCompletedTasks',
-                        description: 'Delete all completed tasks from the database. Use this when the user asks to clear completed tasks.',
+                        description: 'Delete all completed tasks from the database. Use this when the user asks to clear completed tasks. Requires confirmation.',
+                        parameters: {
+                            type: SchemaType.OBJECT,
+                            properties: {
+                                confirmed: { type: SchemaType.BOOLEAN, description: 'Must be true to execute the deletion.' }
+                            }
+                        }
                     },
                     {
                         name: 'createTask',
@@ -91,13 +97,14 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                     },
                     {
                         name: 'deleteTask',
-                        description: 'Delete a single specific task by ID.',
+                        description: 'Delete a single specific task by title. Requires confirmation.',
                         parameters: {
                             type: SchemaType.OBJECT,
                             properties: {
-                                id: { type: SchemaType.NUMBER, description: 'The ID of the task to delete.' }
+                                title: { type: SchemaType.STRING, description: 'The title of the task to delete.' },
+                                confirmed: { type: SchemaType.BOOLEAN, description: 'Must be true to execute the deletion.' }
                             },
-                            required: ["id"]
+                            required: ["title"]
                         }
                     },
                     {
@@ -127,7 +134,11 @@ export const handleAgentAction = async (database: Database, intent: string, res:
             tools: tools,
             systemInstruction: `You are a helpful task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(tasks)}. 
             
-            IMPORTANT: After every tool call, you MUST provide a natural language summary or confirmation to the user in text. Never end with just a tool result.`,
+            IMPORTANT:
+            1. After every tool call, you MUST provide a natural language summary or confirmation to the user in text.
+            2. For DESTRUCTIVE ACTIONS (deleteTask, clearCompletedTasks), if you receive a "Confirmation required" response, you MUST ask the user to confirm the action using the provided UI button. 
+            3. Do NOT proceed with destructive actions unless the user explicitly confirms.
+            4. Never end with just a tool result.`,
         });
 
         const chat = model.startChat({});
@@ -178,8 +189,14 @@ export const handleAgentAction = async (database: Database, intent: string, res:
 
                         let result = '';
                         if (toolCall.name === 'clearCompletedTasks') {
-                            await clearCompletedTasks.run();
-                            result = 'All completed tasks have been deleted.';
+                            const args = toolCall.args as any;
+                            if (args && args.confirmed) {
+                                await clearCompletedTasks.run();
+                                result = 'All completed tasks have been deleted.';
+                            } else {
+                                sendEvent({ type: 'CONFIRMATION_REQUIRED', tool: 'clearCompletedTasks', args: {} });
+                                result = 'ERROR: Confirmation required. Please ask the user to confirm this destructive action.';
+                            }
                         } else if (toolCall.name === 'createTask') {
                             const args = toolCall.args as any;
                             if (args && args.title) {
@@ -206,11 +223,16 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                             }
                         } else if (toolCall.name === 'deleteTask') {
                             const args = toolCall.args as any;
-                            if (args && args.id) {
-                                await deleteTask.run([args.id]);
-                                result = `Task ${args.id} deleted successfully.`;
+                            if (args && args.title) {
+                                if (args.confirmed) {
+                                    await deleteTask.run([args.title]);
+                                    result = `Task "${args.title}" deleted successfully.`;
+                                } else {
+                                    sendEvent({ type: 'CONFIRMATION_REQUIRED', tool: 'deleteTask', args: { title: args.title } });
+                                    result = `ERROR: Confirmation required to delete task "${args.title}". Please ask the user to confirm.`;
+                                }
                             } else {
-                                result = `Failed to delete task, missing ID.`;
+                                result = `Failed to delete task, missing title.`;
                             }
                         } else if (toolCall.name === 'navigateToView') {
                             result = `Successfully instructed the UI to navigate to ${((toolCall.args as any).view) || "unknown"}.`;

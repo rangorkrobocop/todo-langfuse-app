@@ -38,6 +38,7 @@ export const Application = () => {
 
     let accumulatedText = '';
     let accumulatedTools: string[] = [];
+    let pendingConfirmation: { tool: string; args: any } | undefined = undefined;
 
     try {
       const { API_URL } = await import('./api');
@@ -87,7 +88,12 @@ export const Application = () => {
                 setActiveTools(prev => prev.filter(t => t !== toolName));
               }
 
-              // 3. Handle Streaming Content
+              // 3. Handle Confirmation Required
+              if (event.type === 'CONFIRMATION_REQUIRED') {
+                pendingConfirmation = { tool: event.tool, args: event.args };
+              }
+
+              // 4. Handle Streaming Content
               if (event.type === 'TEXT_MESSAGE_CONTENT') {
                 accumulatedText += event.delta;
                 setStreamingText(accumulatedText);
@@ -104,7 +110,8 @@ export const Application = () => {
           role: 'assistant',
           content: accumulatedText || (accumulatedTools.length > 0 ? "System execution complete." : "Request processed."),
           timestamp: new Date().toISOString(),
-          tools: accumulatedTools
+          tools: accumulatedTools,
+          confirmationRequested: pendingConfirmation
         };
         return [...prev, assistMsg];
       });

@@ -82,6 +82,28 @@ export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSen
                                     ))}
                                 </div>
                             )}
+                            {m.confirmationRequested && (
+                                <div className="mt-3 p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg flex flex-col gap-2 w-full max-w-[300px]">
+                                    <div className="flex items-center gap-2 text-amber-500 text-[10px] font-black uppercase">
+                                        <Zap className="w-3 h-3" /> Confirmation Required
+                                    </div>
+                                    <p className="text-[11px] text-[var(--text-dim)]">
+                                        Are you sure you want to {m.confirmationRequested.tool.replace(/([A-Z])/g, ' $1').toLowerCase()}?
+                                        {m.confirmationRequested.args.id && ` (Task ID: ${m.confirmationRequested.args.id})`}
+                                        {m.confirmationRequested.args.title && ` (Task: "${m.confirmationRequested.args.title}")`}
+                                    </p>
+                                    <button
+                                        onClick={() => {
+                                            const confirmMsg = `YES, I confirm the action: ${m.confirmationRequested?.tool} with args ${JSON.stringify(m.confirmationRequested?.args)}. Proceed with confirmed: true.`;
+                                            onSendMessage(confirmMsg);
+                                        }}
+                                        disabled={isLoading}
+                                        className="mt-1 w-full py-1.5 bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase rounded transition-colors disabled:opacity-50"
+                                    >
+                                        Confirm Action
+                                    </button>
+                                </div>
+                            )}
                         </motion.div>
                     ))}
                 </AnimatePresence>

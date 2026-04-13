@@ -29,11 +29,18 @@ export async function getDatabase(
 
   await database.exec(`CREATE TABLE IF NOT EXISTS tasks (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT,
+      title TEXT UNIQUE,
       description TEXT,
       completed BOOLEAN DEFAULT 0
     )
   `);
+
+  // Ensure title is unique even if the table already existed before this change
+  try {
+    await database.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_tasks_title ON tasks(title);');
+  } catch (error) {
+    console.warn('Could not create unique index on tasks.title. This may be due to existing duplicate titles.', error);
+  }
 
   // Store the database instance
   databaseInstance = database;

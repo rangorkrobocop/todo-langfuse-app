@@ -21,4 +21,8 @@ export interface ChatMessage {
   content: string;
   timestamp: string;
   tools?: string[];
+  confirmationRequested?: {
+    tool: string;
+    args: any;
+  };
 }
