@@ -88,7 +88,7 @@ Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI
 ## 🏗 Architecture
 
 ```
-ai-first-todo-app-platform/
+zendo-ai-first-app-platform/
 ├── zendo/         # AI Architecture specifications
 ├── client/          # React + Vite frontend
 │   └── src/

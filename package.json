@@ -1,5 +1,5 @@
 {
-  "name": "ai-first-todo-app-platform",
+  "name": "zendo-ai-first-app-platform",
   "author": "New Author",
   "workspaces": [
     "server",
