@@ -1,17 +1,31 @@
-# 🧘 ZenDo — Zen Minimalist Task Management
+# 🧘 ZenDo — State-of-the-Art AI Reference Architecture
 
-ZenDo is a serene, AI-powered task management workspace built with React, Node.js, and Google Gemini. It features a focused, single-column design and a floating "AI Assistant" that lets you manage your tasks using natural language commands. It also includes local AI observability powered by Langfuse.
+ZenDo is a serene, AI-powered task management workspace built with React, Node.js, and Google Gemini. More than just a task app, **ZenDo serves as a reference architecture and educational platform for implementing cutting-edge AI engineering patterns** (like AG-UI, MCP, and LLMOps) in production-ready applications.
+
+It features a focused, single-column design and a floating "AI Assistant" that lets you manage your tasks using natural language commands, backed by local AI observability powered by Langfuse.
 
 ---
 
 ## ✨ Features
 
+- **Reference Architecture** — A living codebase demonstrating modern AI patterns (see Roadmap below).
 - **Focused Workspace** — A clean, single-column layout designed to minimize distractions and keep you in the flow.
 - **AI Assistant** — A glassmorphic floating console powered by Gemini 2.5 Flash for natural language task management.
 - **Autonomous Tool Calling** — The agent can create, update, complete, delete, and navigate tasks on your behalf.
-- **Real-time Streaming** — Agent responses stream live via Server-Sent Events (SSE).
+- **Real-time Streaming (AG-UI)** — Agent responses, including tools and separated internal reasoning traces, stream live via Server-Sent Events (SSE).
 - **AI Observability** — Built-in local Langfuse tracing to monitor agent actions and token usage.
-- **Zen Minimalist UI** — A premium aesthetic with soft shadows, glassmorphism, and smooth animations.
+
+---
+
+## 🗺 The Roadmap (AI Best Practices)
+
+We are actively evolving ZenDo to illustrate the state of the art in AI engineering. Check the `roadmap/` directory for detailed specifications of the patterns we are implementing:
+
+1. **[Agentic UI Protocol (AG-UI)](roadmap/01-ag-ui-protocol.md)** — *(In Progress)* Streaming reasoning traces, interrupt-aware lifecycles for safe tool execution, and bidirectional JSON patch state management.
+2. **[Model Context Protocol (MCP)](roadmap/02-model-context-protocol.md)** — *(Planned)* Turning ZenDo into both an MCP Server (exposing tasks to tools like Cursor) and an MCP Client.
+3. **[Multi-Agent Orchestration](roadmap/03-multi-agent-orchestration.md)** — *(Planned)* Moving from a monolithic prompt to a Router/Supervisor pattern with specialized sub-agents.
+4. **[LLMOps & Continuous Evaluation](roadmap/04-llmops-and-evaluations.md)** — *(Planned)* Closing the loop with Langfuse via user feedback scores and automated "LLM-as-a-Judge" evaluations.
+5. **[Semantic Memory & RAG](roadmap/05-semantic-memory-rag.md)** — *(Planned)* Integrating `sqlite-vec` to give the agent long-term memory and retrieval-augmented context instead of injecting the full database on every turn.
 
 ---
 
@@ -74,7 +88,8 @@ Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI
 ## 🏗 Architecture
 
 ```
-todo-langfuse-app/
+ai-first-todo-app-platform/
+├── roadmap/         # AI Architecture specifications
 ├── client/          # React + Vite frontend
 │   └── src/
 │       ├── components/revamp/   # Zen Minimalist components

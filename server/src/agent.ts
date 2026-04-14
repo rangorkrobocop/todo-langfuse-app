@@ -2,6 +2,7 @@ import { GoogleGenerativeAI, SchemaType, Tool } from '@google/generative-ai';
 import { Langfuse } from 'langfuse';
 import type { Database } from 'sqlite';
 import type { Response } from 'express';
+import * as jsonpatch from 'fast-json-patch/index.mjs';
 
 // Ensure the API key is passed or available via environment variable
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -14,15 +15,8 @@ const langfuse = new Langfuse({
 
 /**
  * Handles agent interactions by processing user intent and managing autonomous tool execution.
- * This is the core logical engine of the BusyBee Agentic UI.
- * 
- * @param database - Active SQLite database connection
- * @param intent - The user's natural language command
- * @param res - Express response object for streaming (SSE)
  */
 export const handleAgentAction = async (database: Database, intent: string, res: Response) => {
-    // Set headers for Server-Sent Events (SSE) support.
-    // SSE allows us to stream thoughts, tool calls, and text in real-time.
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',
@@ -37,19 +31,17 @@ export const handleAgentAction = async (database: Database, intent: string, res:
         id: runId,
         name: "Agent Interaction",
         input: intent,
-        tags: ["gemini", "agent"]
+        tags: ["gemini", "agent", "ag-ui"]
     });
 
-    /** Helper to push events to the client in standard SSE format */
     const sendEvent = (event: any) => {
         const payload = JSON.stringify(event);
-        console.log(`[OUTGOING EVENT] ${event.type}: ${payload}`);
+        console.log(`[OUTGOING EVENT] ${event.type}`);
         res.write(`data: ${payload}\n\n`);
     };
 
-    sendEvent({ type: 'RUN_STARTED', runId, timestamp: new Date().toISOString() });
+    sendEvent({ type: 'RunStarted', runId, timestamp: new Date().toISOString() });
 
-    // Pre-prepare reusable SQL statements for efficiency
     const getIncompleteTasks = await database.prepare('SELECT * FROM tasks WHERE completed = 0');
     const getCompletedTasks = await database.prepare('SELECT * FROM tasks WHERE completed = 1');
     const clearCompletedTasks = await database.prepare('DELETE FROM tasks WHERE completed = 1');
@@ -59,7 +51,6 @@ export const handleAgentAction = async (database: Database, intent: string, res:
     const deleteTask = await database.prepare('DELETE FROM tasks WHERE title = ?');
 
     try {
-        /** Define the capabilities (tools) available to the LLM */
         const tools: Tool[] = [
             {
                 functionDeclarations: [
@@ -141,15 +132,34 @@ export const handleAgentAction = async (database: Database, intent: string, res:
             }
         ];
 
-        // Fetch current state to provide fresh context for the model's awareness
-        const tasks = await getIncompleteTasks.all();
-        const systemInstruction = `You are a helpful task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(tasks)}. 
+        let currentGlobalState = await getIncompleteTasks.all();
+        
+        // AG-UI: Sync initial state
+        sendEvent({ type: 'StateSnapshot', state: currentGlobalState });
+
+        const syncState = async () => {
+            const newState = await getIncompleteTasks.all();
+            const patch = jsonpatch.compare(currentGlobalState, newState);
+            if (patch.length > 0) {
+                sendEvent({ type: 'StateDelta', patch });
+                currentGlobalState = newState;
+            }
+        };
+
+        const systemInstruction = `You are an AG-UI compliant task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(currentGlobalState)}. 
             
-            IMPORTANT:
-            1. After every tool call, you MUST provide a natural language summary or confirmation to the user in text.
-            2. For DESTRUCTIVE ACTIONS (deleteTask, clearCompletedTasks), if you receive a "Confirmation required" response, you MUST ask the user to confirm the action using the provided UI button. 
-            3. Do NOT proceed with destructive actions unless the user explicitly confirms.
-            4. Never end with just a tool result.`;
+            IMPORTANT RULES:
+            1. REASONING FIRST: You MUST wrap your internal reasoning or planning in <thought></thought> tags BEFORE giving a final response or calling a tool. Do NOT format these tags inside markdown blocks.
+            2. TOOL SUMMARIES: After every tool call, you MUST provide a natural language summary or confirmation to the user in text. Never end with just a tool result.
+            3. INTERRUPTS: For DESTRUCTIVE ACTIONS (deleteTask, clearCompletedTasks), you MUST ask the user to confirm the action in text, but execute the tool call immediately with confirmed: false to trigger an interrupt state.
+
+            STRICT RESPONSE PATTERN:
+            <thought>
+            (Your internal planning, calculations, and tool strategy go here)
+            </thought>
+            (Your conversational response to the user goes here)
+            
+            (Optional: Tool calls execute here)`;
             
         const model = ai.getGenerativeModel({
             model: 'gemini-2.5-flash',
@@ -159,11 +169,10 @@ export const handleAgentAction = async (database: Database, intent: string, res:
 
         const chat = model.startChat({});
         let textStarted = false;
+        let reasoningStarted = false;
+        let inThoughtTag = false;
+        let streamBuffer = '';
 
-        /**
-         * Sends a message to the model with automatic retry on 429 (rate limit) errors.
-         * Uses exponential backoff: waits 15s, 30s, 60s before giving up.
-         */
         const sendWithRetry = async (input: string | any[], maxRetries = 3) => {
             for (let attempt = 0; attempt < maxRetries; attempt++) {
                 try {
@@ -171,8 +180,7 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                 } catch (err: any) {
                     const is429 = err?.status === 429 || err?.message?.includes('429');
                     if (is429 && attempt < maxRetries - 1) {
-                        const delayMs = Math.pow(2, attempt + 1) * 10000; // 20s, 40s
-                        console.warn(`[Agent] Rate limited (429). Retrying in ${delayMs / 1000}s... (attempt ${attempt + 1}/${maxRetries})`);
+                        const delayMs = Math.pow(2, attempt + 1) * 10000;
                         await new Promise(r => setTimeout(r, delayMs));
                     } else {
                         throw err;
@@ -182,12 +190,13 @@ export const handleAgentAction = async (database: Database, intent: string, res:
             throw new Error('Max retries exceeded');
         };
 
-        // Turn Management Loop
         let currentInput: string | any[] = intent;
         let isProcessing = true;
         let finalResponseText = '';
+        let wasInterrupted = false;
+        let interruptDetails = null;
 
-        while (isProcessing) {
+        while (isProcessing && !wasInterrupted) {
             isProcessing = false;
             const toolResponses: any[] = [];
             
@@ -204,33 +213,41 @@ export const handleAgentAction = async (database: Database, intent: string, res:
             const interaction = await sendWithRetry(currentInput);
 
             for await (const chunk of interaction.stream) {
-                // 1. Handle Tool Execution Requests
                 const functionCalls = chunk.functionCalls();
                 if (functionCalls && functionCalls.length > 0) {
                     turnToolCalls.push(...functionCalls);
                     for (const toolCall of functionCalls) {
                         sendEvent({
-                            type: 'TOOL_CALL_START',
+                            type: 'ToolCallStart',
                             toolCallId: `call_${toolCall.name}`,
-                            toolName: toolCall.name,
-                            args: toolCall.args
+                            toolName: toolCall.name
+                        });
+                        
+                        sendEvent({
+                            type: 'ToolCallArgs',
+                            toolCallId: `call_${toolCall.name}`,
+                            args: JSON.stringify(toolCall.args)
                         });
 
                         let result = '';
+                        let stateChanged = false;
+
                         if (toolCall.name === 'clearCompletedTasks') {
                             const args = toolCall.args as any;
                             if (args && args.confirmed) {
                                 await clearCompletedTasks.run();
                                 result = 'All completed tasks have been deleted.';
+                                stateChanged = true;
                             } else {
-                                sendEvent({ type: 'CONFIRMATION_REQUIRED', tool: 'clearCompletedTasks', args: {} });
-                                result = 'ERROR: Confirmation required. Please ask the user to confirm this destructive action.';
+                                wasInterrupted = true;
+                                interruptDetails = { tool: 'clearCompletedTasks', args: {} };
                             }
                         } else if (toolCall.name === 'createTask') {
                             const args = toolCall.args as any;
                             if (args && args.title) {
                                 await createTask.run([args.title, args.description || '']);
                                 result = `Task created successfully with title ${args.title}.`;
+                                stateChanged = true;
                             } else {
                                 result = `Failed to create task, missing title.`;
                             }
@@ -239,6 +256,7 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                             if (args && args.id && args.title) {
                                 await updateTask.run([args.title, args.description || '', args.id]);
                                 result = `Task ${args.id} updated successfully.`;
+                                stateChanged = true;
                             } else {
                                 result = `Failed to update task, missing arguments.`;
                             }
@@ -247,6 +265,7 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                             if (args && args.id) {
                                 await completeTask.run([args.id]);
                                 result = `Task ${args.id} marked as completed.`;
+                                stateChanged = true;
                             } else {
                                 result = `Failed to complete task, missing ID.`;
                             }
@@ -256,9 +275,10 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                                 if (args.confirmed) {
                                     await deleteTask.run([args.title]);
                                     result = `Task "${args.title}" deleted successfully.`;
+                                    stateChanged = true;
                                 } else {
-                                    sendEvent({ type: 'CONFIRMATION_REQUIRED', tool: 'deleteTask', args: { title: args.title } });
-                                    result = `ERROR: Confirmation required to delete task "${args.title}". Please ask the user to confirm.`;
+                                    wasInterrupted = true;
+                                    interruptDetails = { tool: 'deleteTask', args: { title: args.title } };
                                 }
                             } else {
                                 result = `Failed to delete task, missing title.`;
@@ -270,41 +290,122 @@ export const handleAgentAction = async (database: Database, intent: string, res:
                             result = `System Data: Current incomplete tasks are ${currentTasks.length}. Titles: ${currentTasks.map(t => t.title).join(', ')}. Please summarize this for the user now.`;
                         }
 
-                        toolResponses.push({
-                            functionResponse: {
-                                name: toolCall.name,
-                                response: { result }
+                        if (!wasInterrupted) {
+                            toolResponses.push({
+                                functionResponse: {
+                                    name: toolCall.name,
+                                    response: { result }
+                                }
+                            });
+
+                            sendEvent({
+                                type: 'ToolCallResult',
+                                toolCallId: `call_${toolCall.name}`,
+                                result,
+                            });
+                            
+                            if (stateChanged) {
+                                await syncState();
                             }
-                        });
-
-                        sendEvent({
-                            type: 'TOOL_CALL_RESULT',
-                            toolCallId: `call_${toolCall.name}`,
-                            result,
-                        });
+                        }
                     }
                 }
 
-                // 2. Handle Text Content
+                if (wasInterrupted) break;
+
                 if (chunk.text && chunk.text()) {
-                    const textContent = chunk.text();
-                    turnText += textContent;
-                    finalResponseText += textContent;
-                    
-                    if (!textStarted) {
-                        sendEvent({ type: 'TEXT_MESSAGE_START', messageId: `msg_${Date.now()}`, role: 'assistant' });
-                        textStarted = true;
+                    streamBuffer += chunk.text();
+
+                    while (streamBuffer.length > 0) {
+                        if (!inThoughtTag) {
+                            const startIndex = streamBuffer.indexOf('<thought>');
+                            if (startIndex !== -1) {
+                                // Flush anything before the tag
+                                const textPart = streamBuffer.slice(0, startIndex);
+                                if (textPart) {
+                                    if (!textStarted) { sendEvent({ type: 'TextMessageStart', messageId: `msg_${Date.now()}`, role: 'assistant' }); textStarted = true; }
+                                    sendEvent({ type: 'TextMessageContent', messageId: `msg_${Date.now()}`, delta: textPart });
+                                    turnText += textPart;
+                                    finalResponseText += textPart;
+                                }
+                                inThoughtTag = true;
+                                streamBuffer = streamBuffer.slice(startIndex + 9);
+                                if (!reasoningStarted) { sendEvent({ type: 'ReasoningMessageStart', messageId: `reason_${Date.now()}` }); reasoningStarted = true; }
+                            } else {
+                                // If there's a partial '<' at the end, it might be the start of a tag, wait for next chunk
+                                const possibleTagStart = streamBuffer.lastIndexOf('<');
+                                if (possibleTagStart !== -1 && streamBuffer.length - possibleTagStart < 9) {
+                                    const textPart = streamBuffer.slice(0, possibleTagStart);
+                                    if (textPart) {
+                                        if (!textStarted) { sendEvent({ type: 'TextMessageStart', messageId: `msg_${Date.now()}`, role: 'assistant' }); textStarted = true; }
+                                        sendEvent({ type: 'TextMessageContent', messageId: `msg_${Date.now()}`, delta: textPart });
+                                        turnText += textPart;
+                                        finalResponseText += textPart;
+                                    }
+                                    streamBuffer = streamBuffer.slice(possibleTagStart);
+                                    break; // Wait for more chunks
+                                } else {
+                                    if (!textStarted) { sendEvent({ type: 'TextMessageStart', messageId: `msg_${Date.now()}`, role: 'assistant' }); textStarted = true; }
+                                    sendEvent({ type: 'TextMessageContent', messageId: `msg_${Date.now()}`, delta: streamBuffer });
+                                    turnText += streamBuffer;
+                                    finalResponseText += streamBuffer;
+                                    streamBuffer = '';
+                                }
+                            }
+                        } else {
+                            const endIndex = streamBuffer.indexOf('</thought>');
+                            if (endIndex !== -1) {
+                                const thoughtPart = streamBuffer.slice(0, endIndex);
+                                if (thoughtPart) {
+                                    sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: thoughtPart });
+                                }
+                                inThoughtTag = false;
+                                streamBuffer = streamBuffer.slice(endIndex + 10);
+                                sendEvent({ type: 'ReasoningMessageEnd', messageId: `reason_${Date.now()}` });
+                                reasoningStarted = false;
+                            } else {
+                                // If there's a partial '<' at the end, it might be the start of the end tag, wait
+                                const possibleTagStart = streamBuffer.lastIndexOf('<');
+                                if (possibleTagStart !== -1 && streamBuffer.length - possibleTagStart < 10) {
+                                    const thoughtPart = streamBuffer.slice(0, possibleTagStart);
+                                    if (thoughtPart) {
+                                        sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: thoughtPart });
+                                    }
+                                    streamBuffer = streamBuffer.slice(possibleTagStart);
+                                    break; // Wait for more chunks
+                                } else {
+                                    sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: streamBuffer });
+                                    streamBuffer = '';
+                                }
+                            }
+                        }
                     }
-                    sendEvent({ type: 'TEXT_MESSAGE_CONTENT', messageId: `msg_${Date.now()}`, delta: textContent });
                 }
+            }
+            
+            // Flush any remaining buffer at the end of the stream
+            if (streamBuffer.length > 0) {
+                if (!inThoughtTag) {
+                    if (!textStarted) { sendEvent({ type: 'TextMessageStart', messageId: `msg_${Date.now()}`, role: 'assistant' }); textStarted = true; }
+                    sendEvent({ type: 'TextMessageContent', messageId: `msg_${Date.now()}`, delta: streamBuffer });
+                    turnText += streamBuffer;
+                    finalResponseText += streamBuffer;
+                } else {
+                     sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: streamBuffer });
+                }
+                streamBuffer = '';
+            }
+
+            if (textStarted && !isProcessing && !wasInterrupted) {
+                 sendEvent({ type: 'TextMessageEnd', messageId: `msg_${Date.now()}` });
+                 textStarted = false;
             }
 
             generation.end({
                 output: { text: turnText, toolCalls: turnToolCalls }
             });
 
-            // If tools were called, we must provide the answers in the next turn
-            if (toolResponses.length > 0) {
+            if (toolResponses.length > 0 && !wasInterrupted) {
                 isProcessing = true;
                 currentInput = toolResponses;
             }
@@ -312,12 +413,15 @@ export const handleAgentAction = async (database: Database, intent: string, res:
 
         trace.update({ output: finalResponseText });
         
-        // Signal completion
-        sendEvent({ type: 'RUN_FINISHED', runId, finishReason: 'completed' });
+        if (wasInterrupted) {
+            sendEvent({ type: 'RunFinished', runId, outcome: 'interrupt', interrupt: interruptDetails });
+        } else {
+            sendEvent({ type: 'RunFinished', runId, outcome: 'completed' });
+        }
     } catch (error: any) {
         console.error('Agent error:', error);
-        trace.update({ level: 'ERROR', statusMessage: error.message });
-        sendEvent({ type: 'RUN_ERROR', runId, error: error.message });
+        trace.update({ metadata: { level: 'ERROR', statusMessage: error.message } });
+        sendEvent({ type: 'RunError', runId, error: error.message });
     } finally {
         await langfuse.flushAsync();
         res.write('data: [DONE]\n\n');

@@ -4,6 +4,7 @@ import { ChatMessage } from './types';
 import { RevampSidebar } from './components/revamp/sidebar';
 import { RevampTaskBoard } from './components/revamp/task-board';
 import { RevampAgentConsole } from './components/revamp/agent-console';
+import * as jsonpatch from 'fast-json-patch';
 
 /**
  * Internal application state orchestrator.
@@ -17,7 +18,9 @@ export const Application = () => {
   const [isAgentVisible, setIsAgentVisible] = useState(true);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingText, setStreamingText] = useState('');
+  const [streamingReasoning, setStreamingReasoning] = useState('');
   const [activeTools, setActiveTools] = useState<string[]>([]);
+  const [agentState, setAgentState] = useState<any>(null); // For StateSnapshot/Delta
 
   /**
    * Primary entry point for user-agent interaction.
@@ -26,6 +29,7 @@ export const Application = () => {
   const handleAgentIntent = async (message: string) => {
     setIsAgentProcessing(true);
     setStreamingText('');
+    setStreamingReasoning('');
     setActiveTools([]);
 
     // Add user message immediately to the stateful history
@@ -38,8 +42,12 @@ export const Application = () => {
     setMessages(prev => [...prev, userMsg]);
 
     let accumulatedText = '';
+    let accumulatedReasoning = '';
     let accumulatedTools: string[] = [];
-    let pendingConfirmation: { tool: string; args: any } | undefined = undefined;
+    let pendingInterrupt: { tool: string; args: any } | undefined = undefined;
+    
+    // Maintain a local mutable state for the current run's patches
+    let currentRunState = agentState;
 
     try {
       const { API_URL } = await import('./api');
@@ -69,35 +77,62 @@ export const Application = () => {
             const event = parseAGUIStreamedLine(line);
             if (event) {
               // 1. Handle Tool Calls
-              if (event.type === 'TOOL_CALL_START') {
+              if (event.type === 'ToolCallStart') {
                 setActiveTools(prev => [...prev, event.toolName]);
                 accumulatedTools.push(event.toolName);
+              }
 
-                // Special handling for client-side navigation tool
-                if (event.toolName === 'navigateToView' && event.args && event.args.view) {
-                  const path = event.args.view === 'completed' ? '?completed=true' : '/';
-                  window.history.pushState({}, '', path);
-                  window.dispatchEvent(new Event('popstate'));
-                  // Ensure task list refreshes to reflect new view
-                  setTimeout(() => fetchTasks(), 0);
-                }
+              if (event.type === 'ToolCallArgs') {
+                 try {
+                     const parsedArgs = JSON.parse(event.args);
+                     const toolName = event.toolCallId.split('_')[1];
+                     // Special handling for client-side navigation tool
+                     if (toolName === 'navigateToView' && parsedArgs && parsedArgs.view) {
+                         const path = parsedArgs.view === 'completed' ? '?completed=true' : '/';
+                         window.history.pushState({}, '', path);
+                         window.dispatchEvent(new Event('popstate'));
+                         setTimeout(() => fetchTasks(), 0);
+                     }
+                 } catch (e) {
+                     // Incomplete JSON fragment
+                 }
               }
 
               // 2. Handle Tool Completion
-              if (event.type === 'TOOL_CALL_RESULT') {
+              if (event.type === 'ToolCallResult') {
                 const toolName = event.toolCallId.split('_')[1]; // Extract name from 'call_name'
                 setActiveTools(prev => prev.filter(t => t !== toolName));
               }
 
-              // 3. Handle Confirmation Required
-              if (event.type === 'CONFIRMATION_REQUIRED') {
-                pendingConfirmation = { tool: event.tool, args: event.args };
-              }
-
-              // 4. Handle Streaming Content
-              if (event.type === 'TEXT_MESSAGE_CONTENT') {
+              // 3. Handle Streaming Content
+              if (event.type === 'TextMessageContent') {
                 accumulatedText += event.delta;
                 setStreamingText(accumulatedText);
+              }
+
+              // 4. Handle Reasoning Traces
+              if (event.type === 'ReasoningMessageContent') {
+                accumulatedReasoning += event.delta;
+                setStreamingReasoning(accumulatedReasoning);
+              }
+
+              // 5. Handle State Sync (JSON Patch)
+              if (event.type === 'StateSnapshot') {
+                 currentRunState = event.state;
+                 setAgentState(currentRunState);
+                 setTimeout(() => fetchTasks(), 0); // Sync react view
+              }
+              if (event.type === 'StateDelta') {
+                 if (currentRunState) {
+                     currentRunState = jsonpatch.applyPatch(currentRunState, event.patch).newDocument;
+                     setAgentState(currentRunState);
+                     setTimeout(() => fetchTasks(), 0); // Sync react view
+                 }
+              }
+
+              // 6. Handle Run Lifecycle & Interrupts
+              if (event.type === 'RunFinished' && event.outcome === 'interrupt') {
+                 pendingInterrupt = event.interrupt;
               }
             }
           }
@@ -110,14 +145,16 @@ export const Application = () => {
           id: (Date.now() + 1).toString(),
           role: 'assistant',
           content: accumulatedText || (accumulatedTools.length > 0 ? "System execution complete." : "Request processed."),
+          reasoning: accumulatedReasoning,
           timestamp: new Date().toISOString(),
           tools: accumulatedTools,
-          confirmationRequested: pendingConfirmation
+          interrupt: pendingInterrupt
         };
         return [...prev, assistMsg];
       });
       setStreamingText('');
-      await fetchTasks(); // Sync board with latest server state
+      setStreamingReasoning('');
+      
     } catch (error: any) {
       setMessages(prev => [...prev, {
         id: Date.now().toString(),
@@ -144,6 +181,7 @@ export const Application = () => {
         <RevampAgentConsole
           messages={messages}
           streamingText={streamingText}
+          streamingReasoning={streamingReasoning}
           activeTools={activeTools}
           onSendMessage={handleAgentIntent}
           isLoading={isAgentProcessing}

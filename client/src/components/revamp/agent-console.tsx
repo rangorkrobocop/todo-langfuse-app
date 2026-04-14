@@ -1,11 +1,12 @@
 import React, { useEffect, useRef } from 'react';
 import { ChatMessage } from '@/types';
-import { Sparkles, Terminal, Send, Cpu, Zap, X, Bot } from 'lucide-react';
+import { Sparkles, Terminal, Send, Cpu, Zap, X, Bot, Brain } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface AgentConsoleProps {
     messages: ChatMessage[];
     streamingText: string;
+    streamingReasoning?: string;
     activeTools: string[];
     onSendMessage: (msg: string) => void;
     isLoading: boolean;
@@ -17,13 +18,13 @@ interface AgentConsoleProps {
  * Displays a persistent, stateful chat history between the user (Operator) 
  * and the LLM (AI Node). Shows live streaming text and active tool executions.
  */
-export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSendMessage, isLoading, onClose }: AgentConsoleProps) => {
+export const RevampAgentConsole = ({ messages, streamingText, streamingReasoning, activeTools, onSendMessage, isLoading, onClose }: AgentConsoleProps) => {
     const [val, setVal] = React.useState('');
     const bottomRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    }, [messages, streamingText, activeTools]);
+    }, [messages, streamingText, streamingReasoning, activeTools]);
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
@@ -57,7 +58,7 @@ export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSen
             {/* Message History */}
             <div className="flex-1 overflow-y-auto p-6 space-y-6 ag-scroll">
                 <AnimatePresence initial={false}>
-                    {messages.length === 0 && !streamingText && (
+                    {messages.length === 0 && !streamingText && !streamingReasoning && (
                         <motion.div
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
@@ -75,31 +76,38 @@ export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSen
                             animate={{ opacity: 1, scale: 1 }}
                             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'}`}
                         >
+                            {m.role === 'assistant' && m.reasoning && (
+                                <div className="mb-2 p-3 bg-slate-100 text-slate-500 rounded-xl text-[12px] italic border border-slate-200 max-w-[85%]">
+                                    <div className="flex items-center gap-1.5 font-semibold not-italic text-slate-400 mb-1">
+                                        <Brain className="w-3 h-3" /> Reasoning
+                                    </div>
+                                    {m.reasoning}
+                                </div>
+                            )}
                             <div className={`chat-bubble ${m.role === 'user' ? 'user' : 'ai'}`}>
                                 {m.content}
                             </div>
                             {m.tools && m.tools.length > 0 && (
-                                <div className="mt-2 flex gap-1">
-                                    {m.tools.map((t: string) => (
-                                        <span key={t} className="text-[9px] px-2 py-0.5 bg-indigo-600/5 text-indigo-600 rounded-full font-bold">
+                                <div className="mt-2 flex gap-1 flex-wrap max-w-[85%]">
+                                    {m.tools.map((t: string, i: number) => (
+                                        <span key={`${t}-${i}`} className="text-[9px] px-2 py-0.5 bg-indigo-600/5 text-indigo-600 rounded-full font-bold">
                                             {t}
                                         </span>
                                     ))}
                                 </div>
                             )}
-                            {m.confirmationRequested && (
+                            {m.interrupt && (
                                 <div className="mt-3 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex flex-col gap-3 w-full max-w-[320px]">
                                     <div className="flex items-center gap-2 text-amber-700 text-[11px] font-bold uppercase tracking-wider">
-                                        <Zap className="w-3 h-3" /> Confirmation
+                                        <Zap className="w-3 h-3" /> Confirmation Required
                                     </div>
                                     <p className="text-[13px] text-amber-900/80 leading-relaxed">
-                                        I'll {m.confirmationRequested.tool.replace(/([A-Z])/g, ' $1').toLowerCase()}
-                                        {m.confirmationRequested.args.title ? ` "${m.confirmationRequested.args.title}"` : ' this task'}. 
-                                        Shall I proceed?
+                                        I am pausing execution. To proceed with the action: {m.interrupt.tool.replace(/([A-Z])/g, ' $1').toLowerCase()}
+                                        {m.interrupt.args?.title ? ` "${m.interrupt.args.title}"` : ''}, please confirm.
                                     </p>
                                     <button
                                         onClick={() => {
-                                            const confirmMsg = `YES, I confirm the action: ${m.confirmationRequested?.tool} with args ${JSON.stringify(m.confirmationRequested?.args)}. Proceed with confirmed: true.`;
+                                            const confirmMsg = `YES, I confirm the action: ${m.interrupt?.tool} with args ${JSON.stringify(m.interrupt?.args)}. Proceed with confirmed: true.`;
                                             onSendMessage(confirmMsg);
                                         }}
                                         disabled={isLoading}
@@ -112,6 +120,21 @@ export const RevampAgentConsole = ({ messages, streamingText, activeTools, onSen
                         </motion.div>
                     ))}
                 </AnimatePresence>
+
+                {streamingReasoning && (
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        className="flex flex-col items-start"
+                    >
+                        <div className="mb-2 p-3 bg-slate-100/80 text-slate-500 rounded-xl text-[12px] italic border border-slate-200 max-w-[85%]">
+                            <div className="flex items-center gap-1.5 font-semibold not-italic text-slate-400 mb-1 animate-pulse">
+                                <Brain className="w-3 h-3" /> Reasoning...
+                            </div>
+                            {streamingReasoning}
+                        </div>
+                    </motion.div>
+                )}
 
                 {streamingText && (
                     <motion.div

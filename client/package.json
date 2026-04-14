@@ -1,5 +1,5 @@
 {
-  "name": "busy-bee-ui",
+  "name": "zendo-ui",
   "version": "1.0.0",
   "private": true,
   "description": "A simple task management applicaton for the sole purpose of learning how to build type-safe applications.",
@@ -19,12 +19,13 @@
   "license": "MIT",
   "dependencies": {
     "@tailwindcss/vite": "^4.0.13",
-    "busy-bee-schema": "*",
+    "zendo-schema": "*",
     "chalk": "^5.4.1",
     "change-case": "^5.4.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "dotenv": "^16.4.7",
+    "fast-json-patch": "^3.1.1",
     "framer-motion": "^12.38.0",
     "lucide-react": "^1.8.0",
     "openapi-fetch": "^0.13.5",

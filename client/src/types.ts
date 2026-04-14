@@ -19,9 +19,10 @@ export interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
   content: string;
+  reasoning?: string;
   timestamp: string;
   tools?: string[];
-  confirmationRequested?: {
+  interrupt?: {
     tool: string;
     args: any;
   };

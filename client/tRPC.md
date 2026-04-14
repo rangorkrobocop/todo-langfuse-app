@@ -19,7 +19,7 @@ npm install @trpc/client
 The existing REST API client was completely refactored to use tRPC:
 
 ```typescript
-import { type NewTask, type Task, type UpdateTask } from 'busy-bee-schema';
+import { type NewTask, type Task, type UpdateTask } from 'zendo-schema';
 import { createTRPCProxyClient, httpBatchLink } from '@trpc/client';
 import type { AppRouter } from '../../server/src/trpc';
 

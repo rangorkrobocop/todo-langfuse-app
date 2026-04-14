@@ -1,17 +1,34 @@
+import type { Operation } from 'fast-json-patch';
+
 export type AGUIEvent =
-    | { type: 'RUN_STARTED'; runId: string; timestamp: string }
-    | { type: 'TEXT_MESSAGE_START'; messageId: string; role: string }
-    | { type: 'TEXT_MESSAGE_CONTENT'; messageId: string; delta: string }
-    | { type: 'TOOL_CALL_START'; toolCallId: string; toolName: string; args?: any }
-    | { type: 'TOOL_CALL_RESULT'; toolCallId: string; result: string }
-    | { type: 'CONFIRMATION_REQUIRED'; tool: string; args: any }
-    | { type: 'RUN_FINISHED'; runId: string; finishReason: string; usage?: any }
-    | { type: 'RUN_ERROR'; runId: string; error: string };
+    // Run Lifecycle
+    | { type: 'RunStarted'; runId: string; timestamp: string }
+    | { type: 'RunFinished'; runId: string; outcome: 'completed' | 'error' | 'interrupt'; interrupt?: any }
+    | { type: 'RunError'; runId: string; error: string }
+    
+    // Message Events
+    | { type: 'TextMessageStart'; messageId: string; role: string }
+    | { type: 'TextMessageContent'; messageId: string; delta: string }
+    | { type: 'TextMessageEnd'; messageId: string }
+
+    // Reasoning Traces
+    | { type: 'ReasoningMessageStart'; messageId: string }
+    | { type: 'ReasoningMessageContent'; messageId: string; delta: string }
+    | { type: 'ReasoningMessageEnd'; messageId: string }
+
+    // Tool Events
+    | { type: 'ToolCallStart'; toolCallId: string; toolName: string }
+    | { type: 'ToolCallArgs'; toolCallId: string; args: string } // Streamed JSON fragments
+    | { type: 'ToolCallResult'; toolCallId: string; result: string }
+
+    // State Synchronization (JSON Patch)
+    | { type: 'StateSnapshot'; state: any }
+    | { type: 'StateDelta'; patch: Operation[] };
 
 export function parseAGUIStreamedLine(line: string): AGUIEvent | null {
     if (line.startsWith('data: ')) {
         try {
-            const dataStr = line.slice(6);
+            const dataStr = line.slice(6).trim();
             if (dataStr === '[DONE]') return null;
             return JSON.parse(dataStr) as AGUIEvent;
         } catch {

@@ -1,5 +1,5 @@
 {
-  "name": "todo-langfuse-app",
+  "name": "ai-first-todo-app-platform",
   "author": "New Author",
   "workspaces": [
     "server",

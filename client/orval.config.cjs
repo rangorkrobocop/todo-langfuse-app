@@ -1,6 +1,6 @@
 /* eslint-disable no-undef */
 module.exports = {
-  'busy-bee': {
+  'zendo': {
     output: {
       client: 'zod',
       mode: 'single',
