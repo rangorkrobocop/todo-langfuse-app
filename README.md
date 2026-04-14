@@ -19,13 +19,13 @@ It features a focused, single-column design and a floating "AI Assistant" that l
 
 ## 🗺 The Roadmap (AI Best Practices)
 
-We are actively evolving ZenDo to illustrate the state of the art in AI engineering. Check the `roadmap/` directory for detailed specifications of the patterns we are implementing:
+We are actively evolving ZenDo to illustrate the state of the art in AI engineering. Check the `zendo/` directory for detailed specifications of the patterns we are implementing:
 
-1. **[Agentic UI Protocol (AG-UI)](roadmap/01-ag-ui-protocol.md)** — *(In Progress)* Streaming reasoning traces, interrupt-aware lifecycles for safe tool execution, and bidirectional JSON patch state management.
-2. **[Model Context Protocol (MCP)](roadmap/02-model-context-protocol.md)** — *(Planned)* Turning ZenDo into both an MCP Server (exposing tasks to tools like Cursor) and an MCP Client.
-3. **[Multi-Agent Orchestration](roadmap/03-multi-agent-orchestration.md)** — *(Planned)* Moving from a monolithic prompt to a Router/Supervisor pattern with specialized sub-agents.
-4. **[LLMOps & Continuous Evaluation](roadmap/04-llmops-and-evaluations.md)** — *(Planned)* Closing the loop with Langfuse via user feedback scores and automated "LLM-as-a-Judge" evaluations.
-5. **[Semantic Memory & RAG](roadmap/05-semantic-memory-rag.md)** — *(Planned)* Integrating `sqlite-vec` to give the agent long-term memory and retrieval-augmented context instead of injecting the full database on every turn.
+1. **[Agentic UI Protocol (AG-UI)](zendo/01-ag-ui-protocol.md)** — *(In Progress)* Streaming reasoning traces, interrupt-aware lifecycles for safe tool execution, and bidirectional JSON patch state management.
+2. **[Model Context Protocol (MCP)](zendo/02-model-context-protocol.md)** — *(Planned)* Turning ZenDo into both an MCP Server (exposing tasks to tools like Cursor) and an MCP Client.
+3. **[Multi-Agent Orchestration](zendo/03-multi-agent-orchestration.md)** — *(Planned)* Moving from a monolithic prompt to a Router/Supervisor pattern with specialized sub-agents.
+4. **[LLMOps & Continuous Evaluation](zendo/04-llmops-and-evaluations.md)** — *(Planned)* Closing the loop with Langfuse via user feedback scores and automated "LLM-as-a-Judge" evaluations.
+5. **[Semantic Memory & RAG](zendo/05-semantic-memory-rag.md)** — *(Planned)* Integrating `sqlite-vec` to give the agent long-term memory and retrieval-augmented context instead of injecting the full database on every turn.
 
 ---
 
@@ -89,7 +89,7 @@ Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI
 
 ```
 ai-first-todo-app-platform/
-├── roadmap/         # AI Architecture specifications
+├── zendo/         # AI Architecture specifications
 ├── client/          # React + Vite frontend
 │   └── src/
 │       ├── components/revamp/   # Zen Minimalist components
