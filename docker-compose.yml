@@ -1,15 +1,30 @@
 services:
+  app-db:
+    image: postgres:15
+    restart: always
+    ports:
+      - "5433:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=postgres
+    volumes:
+      - app_db_data:/var/lib/postgresql/data
+
   server:
     build:
       context: .
       dockerfile: server/Dockerfile
     ports:
       - "4001:4001"
+    depends_on:
+      app-db:
+        condition: service_started
     volumes:
       - database_data:/app/server/data
     environment:
       - NODE_ENV=development
-      - DATABASE_PATH=/app/server/data/database.sqlite
+      - DATABASE_URL=postgresql://postgres:postgres@app-db:5432/postgres
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
@@ -55,3 +70,4 @@ services:
 volumes:
   database_data:
   langfuse_db_data:
+  app_db_data:

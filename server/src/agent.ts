@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI, SchemaType, Tool } from '@google/generative-ai';
 import { Langfuse } from 'langfuse';
-import type { Database } from 'sqlite';
+
 import type { Response } from 'express';
 import * as jsonpatch from 'fast-json-patch/index.mjs';
 
@@ -16,7 +16,7 @@ const langfuse = new Langfuse({
 /**
  * Handles agent interactions by processing user intent and managing autonomous tool execution.
  */
-export const handleAgentAction = async (database: Database, intent: string, res: Response) => {
+export const handleAgentAction = async (database: any, intent: string, res: Response) => {
     res.writeHead(200, {
         'Content-Type': 'text/event-stream',
         'Cache-Control': 'no-cache',

@@ -2,7 +2,7 @@ import request from 'supertest';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import type { Application } from 'express';
-import type { Database } from 'sqlite';
+
 
 import { getDatabase } from './database.js';
 import { createServer } from './server.js';
@@ -14,7 +14,7 @@ const booleanOrBinary = (expected: true | false | 0 | 1) => ({
 
 describe('Tasks API', () => {
   let app: Application;
-  let database: Database;
+  let database: any;
 
   beforeEach(async () => {
     database = await getDatabase(':memory:', true); // Force a new database instance

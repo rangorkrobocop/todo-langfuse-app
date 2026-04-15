@@ -1,13 +1,13 @@
 import cors from 'cors';
 import express from 'express';
-import type { Database } from 'sqlite';
+
 import { handleError } from './handle-error.js';
 
 /**
  * Primary HTTP Server Configuration.
  * Defines standard CRUD endpoints and the specialized Agent Intelligence endpoint.
  */
-export async function createServer(database: Database) {
+export async function createServer(database: any) {
   const app = express();
   app.use(cors());
   app.use(express.json());
@@ -71,7 +71,7 @@ export async function createServer(database: Database) {
       const updates = req.body;
       const task = { ...previous, ...updates };
 
-      await updateTask.run([task.title, task.description, task.completed, id]);
+      await updateTask.run([task.title, task.description, task.completed ? 1 : 0, id]);
       return res.status(200).json({ message: 'Task updated successfully' });
     } catch (error) {
       return handleError(req, res, error);

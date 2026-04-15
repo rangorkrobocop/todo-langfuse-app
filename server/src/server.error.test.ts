@@ -2,7 +2,7 @@ import request from 'supertest';
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
 
 import type { Application } from 'express';
-import type { Database } from 'sqlite';
+
 
 import { getDatabase } from './database.js';
 import { createServer } from './server.js';
@@ -10,7 +10,7 @@ import * as handleErrorModule from './handle-error.js';
 
 describe('Server Error Handling', () => {
   let app: Application;
-  let database: Database;
+  let database: any;
   let mockHandleError: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
