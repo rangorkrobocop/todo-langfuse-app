@@ -9,7 +9,8 @@ COPY package.json package-lock.json ./
 # Copy all package files to allow a proper root install
 COPY shared/package.json ./shared/
 COPY client/package.json ./client/
-COPY server/package.json ./server/
+COPY tasks-service/package.json ./tasks-service/
+COPY bff-service/package.json ./bff-service/
 
 # Install ALL dependencies at the root
 RUN npm ci

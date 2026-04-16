@@ -9,7 +9,7 @@ MCP is an open standard that enables AI models to securely connect to local and 
 ## The Strategy
 
 ### 1. ZenDo as an MCP Server
-We will expose ZenDo's SQLite database via an MCP Server interface. 
+We will expose ZenDo's PostgreSQL database via an MCP Server interface. 
 * **Goal:** You can open an external tool like Claude Desktop or the Cursor IDE, connect it to the ZenDo MCP Server, and say "Summarize my ZenDo tasks" or "Mark the documentation task complete in ZenDo."
 
 ### 2. ZenDo as an MCP Client

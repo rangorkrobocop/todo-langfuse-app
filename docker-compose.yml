@@ -1,5 +1,7 @@
+name: zendo-ai-first-platform
+
 services:
-  app-db:
+  tasks-db:
     image: postgres:15
     restart: always
     ports:
@@ -9,26 +11,37 @@ services:
       - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=postgres
     volumes:
-      - app_db_data:/var/lib/postgresql/data
+      - tasks_db_data:/var/lib/postgresql/data
 
-  server:
+  tasks-service:
     build:
       context: .
-      dockerfile: server/Dockerfile
+      dockerfile: tasks-service/Dockerfile
+    ports:
+      - "4002:4002"
+    depends_on:
+      tasks-db:
+        condition: service_started
+    environment:
+      - NODE_ENV=development
+      - PORT=4002
+      - DATABASE_URL=postgresql://postgres:postgres@tasks-db:5432/postgres
+
+  bff-service:
+    build:
+      context: .
+      dockerfile: bff-service/Dockerfile
     ports:
       - "4001:4001"
     depends_on:
-      app-db:
-        condition: service_started
-    volumes:
-      - database_data:/app/server/data
+      - tasks-service
     environment:
       - NODE_ENV=development
-      - DATABASE_URL=postgresql://postgres:postgres@app-db:5432/postgres
+      - TASKS_SERVICE_URL=http://tasks-service:4002
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-      - LANGFUSE_BASEURL=http://langfuse-server:3000
+      - LANGFUSE_BASEURL=http://langfuse-service:3000
 
   client:
     build:
@@ -37,9 +50,9 @@ services:
     ports:
       - "4000:80"
     depends_on:
-      - server
+      - bff-service
 
-  langfuse-server:
+  langfuse-service:
     image: langfuse/langfuse:2
     depends_on:
       langfuse-db:
@@ -68,6 +81,5 @@ services:
       - langfuse_db_data:/var/lib/postgresql/data
 
 volumes:
-  database_data:
   langfuse_db_data:
-  app_db_data:
+  tasks_db_data:

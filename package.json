@@ -5,6 +5,8 @@
     "server",
     "client",
     "exercises",
-    "shared"
+    "shared",
+    "bff-service",
+    "tasks-service"
   ]
 }

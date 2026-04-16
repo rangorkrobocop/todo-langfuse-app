@@ -10,7 +10,7 @@ Currently, ZenDo uses a single, monolithic Gemini prompt injected with all tools
 1. **The Supervisor (Router):** A fast, low-latency model (e.g., Gemini 2.5 Flash) whose only job is intent classification. 
 2. **The Sub-Agents:**
     * **Task Operator Agent:** Has access to the database tools (Create, Update, Delete).
-    * **Data Analyst Agent:** Has access to `sqlite-vec` or raw SQL to analyze trends (e.g., "Am I getting faster at completing tasks?").
+    * **Data Analyst Agent:** Has access to `pgvector` or raw SQL to analyze trends (e.g., "Am I getting faster at completing tasks?").
     * **UI Controller Agent:** Only has tools for navigating the UI and generating dynamic A2UI widgets.
 
 ## Technical Implementation

@@ -9,7 +9,7 @@ Currently, the agent is injected with the *entire* list of incomplete tasks on e
 ## The Strategy
 
 ### 1. Vector Database Integration
-- Integrate `sqlite-vec` (a vector search extension for SQLite) directly into the backend.
+- Integrate `pgvector` (a vector search extension for PostgreSQL) directly into the backend.
 - Whenever a task is created or updated, generate a text embedding (using Google's embedding models) and store it in a vector column.
 
 ### 2. Tool Refactoring
