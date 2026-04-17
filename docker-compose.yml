@@ -35,13 +35,28 @@ services:
       - "4001:4001"
     depends_on:
       - tasks-service
+      - mcp-service
     environment:
       - NODE_ENV=development
       - TASKS_SERVICE_URL=http://tasks-service:4002
+      - MCP_SERVICE_URL=http://mcp-service:4003
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
       - LANGFUSE_BASEURL=http://langfuse-service:3000
+
+  mcp-service:
+    build:
+      context: .
+      dockerfile: mcp-service/Dockerfile
+    ports:
+      - "4003:4003"
+    depends_on:
+      - tasks-service
+    environment:
+      - NODE_ENV=development
+      - PORT=4003
+      - TASKS_SERVICE_URL=http://tasks-service:4002
 
   client:
     build:

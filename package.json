@@ -6,6 +6,7 @@
     "exercises",
     "shared",
     "bff-service",
-    "tasks-service"
+    "tasks-service",
+    "mcp-service"
   ]
 }
