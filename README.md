@@ -1,58 +1,75 @@
 # 🧘 ZenDo — State-of-the-Art AI Reference Architecture
 
-ZenDo is a serene, AI-powered task management workspace built with React, Node.js, and Google Gemini. More than just a task app, **ZenDo serves as a reference architecture and educational platform for implementing cutting-edge AI engineering patterns** (like AG-UI, MCP, and LLMOps) in production-ready applications.
+ZenDo is a serene, AI-powered task management workspace built to demonstrate modern AI engineering patterns in production-ready applications. It serves as a reference architecture for implementing **Agentic UI (AG-UI)**, **Autonomous Tool Calling**, and **LLM Observability**.
 
-It features a focused, single-column design and a floating "AI Assistant" that lets you manage your tasks using natural language commands, backed by local AI observability powered by Langfuse.
-
----
-
-## ✨ Features
-
-- **Reference Architecture** — A living codebase demonstrating modern AI patterns (see Roadmap below).
-- **Focused Workspace** — A clean, single-column layout designed to minimize distractions and keep you in the flow.
-- **AI Assistant** — A glassmorphic floating console powered by Gemini 2.5 Flash for natural language task management.
-- **Autonomous Tool Calling** — The agent can create, update, complete, delete, and navigate tasks on your behalf.
-- **Real-time Streaming (AG-UI)** — Agent responses, including tools and separated internal reasoning traces, stream live via Server-Sent Events (SSE).
-- **AI Observability** — Built-in local Langfuse tracing to monitor agent actions and token usage.
+Featuring a focused, minimalist design and a floating glassmorphic **AI Assistant**, ZenDo allows you to manage your workspace using natural language, backed by real-time streaming reasoning and local AI tracing.
 
 ---
 
-## 🗺 The Roadmap (AI Best Practices)
+## ✨ Key Features
 
-We are actively evolving ZenDo to illustrate the state of the art in AI engineering. Check the `zendo/` directory for detailed specifications of the patterns we are implementing:
+- **AG-UI Protocol Implementation** — Real-time streaming of agent reasoning traces (`<thought>` tags) and internal planning via Server-Sent Events (SSE).
+- **Autonomous Agentic Workflows** — Powered by **Gemini 2.5 Flash**, the assistant can create, update, complete, and delete tasks, as well as navigate the UI on your behalf.
+- **Interrupt-Aware Safety** — Destructive actions (like deleting tasks) trigger an "Interrupt" state, requiring explicit user confirmation before execution.
+- **State Synchronization** — The agent streams JSON Patch deltas (`StateDelta`) to keep the UI perfectly in sync with its internal model of your tasks.
+- **AI Observability** — Built-in integration with **Langfuse** for tracing agent turns, token usage, and tool execution history.
+- **Modern Microservices** — A clean split between orchestration (BFF), data management (Core Service), and the frontend.
 
-1. **[Agentic UI Protocol (AG-UI)](zendo/01-ag-ui-protocol.md)** — *(In Progress)* Streaming reasoning traces, interrupt-aware lifecycles for safe tool execution, and bidirectional JSON patch state management.
-2. **[Model Context Protocol (MCP)](zendo/02-model-context-protocol.md)** — *(Planned)* Turning ZenDo into both an MCP Server (exposing tasks to tools like Cursor) and an MCP Client.
-3. **[Multi-Agent Orchestration](zendo/03-multi-agent-orchestration.md)** — *(Planned)* Moving from a monolithic prompt to a Router/Supervisor pattern with specialized sub-agents.
-4. **[LLMOps & Continuous Evaluation](zendo/04-llmops-and-evaluations.md)** — *(Planned)* Closing the loop with Langfuse via user feedback scores and automated "LLM-as-a-Judge" evaluations.
-5. **[Semantic Memory & RAG](zendo/05-semantic-memory-rag.md)** — *(Planned)* Integrating `pgvector` to give the agent long-term memory and retrieval-augmented context instead of injecting the full database on every turn.
+---
+
+## 🏗 Architecture
+
+ZenDo follows a modern microservices pattern optimized for AI orchestration:
+
+```mermaid
+graph TD
+    Client[Client App: React 19] <--> BFF[BFF Service: AI Orchestrator]
+    BFF <--> Gemini[Google Gemini 2.5 Flash]
+    BFF --> Langfuse[Langfuse: Observability]
+    BFF <--> Tasks[Tasks Service: Core Data]
+    Tasks <--> DB[(PostgreSQL)]
+```
+
+- **`client-app/`**: A React 19 + Vite frontend. Uses SSE to listen to the agent and Framer Motion for a fluid, "alive" UI.
+- **`bff-service/`**: The "Brain" of the operation. Handles the AG-UI protocol, Gemini integration, and proxies data requests to the core services.
+- **`tasks-service/`**: A dedicated data microservice managing the task lifecycle and PostgreSQL persistence.
+- **`shared/`**: Common Zod schemas and TypeScript types used across the entire stack for end-to-end type safety.
+
+---
+
+## 🤖 AI Capabilities (The Agent)
+
+The assistant is more than a chatbot; it is a workspace controller. You can use commands like:
+
+| Command | What happens |
+|---|---|
+| `"Plan my day"` | The agent fetches your tasks and provides a briefing. |
+| `"Create a task for my 2pm meeting"` | Calls the `createTask` tool autonomously. |
+| `"Clear all my finished work"` | Triggers the `clearCompletedTasks` interrupt for confirmation. |
+| `"Show me my completed tasks"` | Uses `navigateToView` to switch the UI context. |
 
 ---
 
 ## 🚀 Getting Started
 
-The easiest way to run the entire stack (Frontend, Backend, and Langfuse Observability) is using Docker Compose.
-
-### Requirements
+### Prerequisites
 - **Docker** and **Docker Compose**
-- A **Google Gemini API key** (get one at [aistudio.google.com](https://aistudio.google.com))
+- **Google Gemini API Key** (Get one at [aistudio.google.com](https://aistudio.google.com))
 
-### 1. Configuration
+### 1. Environment Configuration
 
-Create a `.env` file in the **root** of the project directory:
+Create a `.env` file in the **root** directory:
 
 ```bash
 # LLM
 GEMINI_API_KEY=your_gemini_api_key_here
 
-# Local Langfuse
+# Local Langfuse (Defaults for local Docker setup)
 LANGFUSE_PUBLIC_KEY=pk-lf-b64212b7-6190-4a6b-908f-7cc9fa2e0883
 LANGFUSE_SECRET_KEY=sk-lf-de9ec0b5-0dd1-41dd-802a-5fcffa315e44
 ```
 
 ### 2. Start the Stack
-
-Run the following command from the root directory:
 
 ```bash
 docker compose up -d --build
@@ -60,54 +77,9 @@ docker compose up -d --build
 
 ### 3. Access the Services
 
-Once the containers are running, you can access the services at the following URLs:
-
-- **Frontend App**: [http://localhost:4000](http://localhost:4000)
-- **Backend API**: [http://localhost:4001](http://localhost:4001)
+- **Frontend**: [http://localhost:4000](http://localhost:4000)
+- **BFF API**: [http://localhost:4001](http://localhost:4001)
 - **Langfuse Dashboard**: [http://localhost:3000](http://localhost:3000)
-
-*Note: To view your traces in Langfuse, go to the dashboard, sign up locally, and match the API keys from your `.env` file to a new Langfuse project if necessary.*
-
----
-
-## 🤖 Using the AI Assistant
-
-Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI Assistant**. Type natural language commands to control your workspace:
-
-| Command | What it does |
-|---|---|
-| `summarize my tasks` | Gives a briefing on your current workload |
-| `create a task called Buy groceries` | Creates a new task |
-| `complete task 3` | Marks a task as completed |
-| `delete task 2` | Permanently deletes a task |
-| `go to completed tasks` | Navigates the UI to the completed view |
-| `clear completed tasks` | Deletes all completed tasks |
-
----
-
-## 🏗 Architecture
-
-```
-zendo-ai-first-app-platform/
-├── zendo/           # AI Architecture specifications
-├── client-app/      # React + Vite frontend
-│   └── src/
-│       ├── components/revamp/   # Zen Minimalist components
-│       ├── application.tsx      # Single-column layout + floating assistant
-│       └── utilities/ag-ui.ts   # SSE client for agent streaming
-│
-├── bff-service/     # Express API Gateway & AI Orchestration layer
-│   └── src/
-│       ├── agent.ts     # Gemini tool-calling engine & Langfuse tracing
-│       └── server.ts    # Proxies CRUD tasks to tasks-service & handles /api/agent
-│
-├── tasks-service/   # Express + PostgreSQL Core Data Microservice
-│   └── src/
-│       ├── database.ts  # Database connection and queries
-│       └── server.ts    # REST API for task CRUD operations
-│
-└── docker-compose.yml # Orchestrates Client, BFF, Tasks, and Langfuse
-```
 
 ---
 
@@ -115,8 +87,19 @@ zendo-ai-first-app-platform/
 
 | Layer | Technology |
 |---|---|
-| Frontend | React 19, Vite, Framer Motion, Tailwind CSS, Lucide Icons |
-| Backend | Node.js, Express, PostgreSQL |
-| AI | Google Gemini 2.5 Flash (`@google/generative-ai`) |
-| Observability | Langfuse (Dockerized locally) |
-| Runtime | Node.js (Docker `node:20-slim`) |
+| **Frontend** | React 19, Vite, Tailwind CSS 4, Framer Motion |
+| **Orchestration** | Node.js, Express, SSE (Server-Sent Events) |
+| **AI Model** | Google Gemini 2.5 Flash (`@google/generative-ai`) |
+| **Database** | PostgreSQL 15 |
+| **Observability** | Langfuse (Self-hosted via Docker) |
+| **Type Safety** | Zod, TypeScript Workspaces |
+
+---
+
+## 🗺 Roadmap
+
+We are evolving ZenDo to showcase the cutting edge of AI Engineering:
+1. **Model Context Protocol (MCP)** — Enabling ZenDo to act as both an MCP server and client.
+2. **Multi-Agent Router** — Moving from a single agent to a specialized swarm.
+3. **Semantic Memory** — Integrating `pgvector` for long-term task RAG.
+4. **LLM-as-a-Judge** — Automated evaluations using Langfuse.
