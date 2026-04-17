@@ -1,105 +1,104 @@
-# 🧘 ZenDo — State-of-the-Art AI Reference Architecture
+# 🧘 ZenDo — Enterprise AI-First App Platform
 
-ZenDo is a serene, AI-powered task management workspace built to demonstrate modern AI engineering patterns in production-ready applications. It serves as a reference architecture for implementing **Agentic UI (AG-UI)**, **Autonomous Tool Calling**, and **LLM Observability**.
-
-Featuring a focused, minimalist design and a floating glassmorphic **AI Assistant**, ZenDo allows you to manage your workspace using natural language, backed by real-time streaming reasoning and local AI tracing.
+ZenDo is a state-of-the-art reference architecture for building **Enterprise Suites** that are AI-native from the ground up. It demonstrates how to build a production-ready, multi-service application where AI agents and traditional UIs coexist seamlessly using the **Model Context Protocol (MCP)** and **Agentic UI (AG-UI)** standards.
 
 ---
 
-## ✨ Key Features
+## 🏗 High-Level Architecture
 
-- **AG-UI Protocol Implementation** — Real-time streaming of agent reasoning traces (`<thought>` tags) and internal planning via Server-Sent Events (SSE).
-- **Autonomous Agentic Workflows** — Powered by **Gemini 2.5 Flash**, the assistant can create, update, complete, and delete tasks, as well as navigate the UI on your behalf.
-- **Interrupt-Aware Safety** — Destructive actions (like deleting tasks) trigger an "Interrupt" state, requiring explicit user confirmation before execution.
-- **State Synchronization** — The agent streams JSON Patch deltas (`StateDelta`) to keep the UI perfectly in sync with its internal model of your tasks.
-- **AI Observability** — Built-in integration with **Langfuse** for tracing agent turns, token usage, and tool execution history.
-- **Modern Microservices** — A clean split between orchestration (BFF), data management (Core Service), and the frontend.
-
----
-
-## 🏗 Architecture
-
-ZenDo follows a modern microservices pattern optimized for AI orchestration:
+ZenDo is designed around the principle of **Decoupled Intelligence**. The AI logic (BFF) is separated from the Domain logic (Systems of Record) by an MCP Gateway, allowing the platform to scale to dozens of services without AI bloat.
 
 ```mermaid
 graph TD
-    Client[Client App: React 19] <--> BFF[BFF Service: AI Orchestrator]
-    BFF <--> Gemini[Google Gemini 2.5 Flash]
-    BFF --> Langfuse[Langfuse: Observability]
-    BFF <--> Tasks[Tasks Service: Core Data]
-    Tasks <--> DB[(PostgreSQL)]
+    Client[Client App: React 19] <-->|Standard REST & AG-UI SSE| BFF[BFF Service: AI Orchestrator]
+    BFF <-->|MCP Protocol| MCP[MCP Gateway: Tool Registry]
+    BFF <-->|LLM Chat| Gemini[Google Gemini 2.5 Flash]
+    BFF -->|Telemetry| Langfuse[Langfuse: Observability]
+    
+    subgraph "Systems of Record"
+        MCP <-->|Tools| Tasks[Tasks Service]
+        BFF <-->|Hybrid UI Data| Tasks
+        Tasks <--> DB[(PostgreSQL)]
+    end
 ```
 
-- **`client-app/`**: A React 19 + Vite frontend. Uses SSE to listen to the agent and Framer Motion for a fluid, "alive" UI.
-- **`bff-service/`**: The "Brain" of the operation. Handles the AG-UI protocol, Gemini integration, and proxies data requests to the core services.
-- **`tasks-service/`**: A dedicated data microservice managing the task lifecycle and PostgreSQL persistence.
-- **`shared/`**: Common Zod schemas and TypeScript types used across the entire stack for end-to-end type safety.
+### 🛰 The Services
+
+| Service | Role | Technology |
+|---|---|---|
+| **`client-app/`** | Hybrid UI | React 19, Vite, Tailwind CSS 4, Framer Motion |
+| **`bff-service/`** | AI Orchestrator | Node.js, Express, MCP Client, SSE Streaming |
+| **`mcp-service/`** | Tool Gateway | MCP SDK, Express (SSE Transport) |
+| **`tasks-service/`** | System of Record | Node.js, PostgreSQL 15 |
+| **`shared/`** | Contract Layer | Zod Schemas, TypeScript Workspaces |
 
 ---
 
-## 🤖 AI Capabilities (The Agent)
+## 🧠 AI Strategy: The Hybrid Approach
 
-The assistant is more than a chatbot; it is a workspace controller. You can use commands like:
+ZenDo implements a **Progressive Enhancement** model for AI:
+1.  **Web 3.0 Standard:** Users can use the app like a standard SaaS—clicking buttons, filling forms, and managing tasks manually.
+2.  **AI-Native (AG-UI):** A floating glassmorphic assistant can "see" the current state and execute tools on the user's behalf.
+3.  **Unified State:** Whether a human clicks "Delete" or the Agent calls `delete_task`, the frontend state remains in sync via **JSON Patch (`StateDelta`)** updates streamed over SSE.
 
-| Command | What happens |
+### 🛡 The AG-UI Protocol
+ZenDo implements the Agentic UI protocol to ensure transparency and safety:
+-   **Reasoning Traces:** Gemini streams its internal logic inside `<thought>` tags, which the UI renders as collapsible "Reasoning" blocks.
+-   **Interrupt Safety:** Destructive tools (like clearing all tasks) require a "confirmed" flag, allowing the UI to interrupt the agent and ask for human permission.
+
+---
+
+## 🛠 Enterprise Tools (MCP Registry)
+
+The **`mcp-service`** dynamically exposes these tools to the Agent. New services can be added to the registry without touching the BFF logic.
+
+| Tool Name | Capability |
 |---|---|
-| `"Plan my day"` | The agent fetches your tasks and provides a briefing. |
-| `"Create a task for my 2pm meeting"` | Calls the `createTask` tool autonomously. |
-| `"Clear all my finished work"` | Triggers the `clearCompletedTasks` interrupt for confirmation. |
-| `"Show me my completed tasks"` | Uses `navigateToView` to switch the UI context. |
+| `get_tasks` | Fetch tasks with optional completion filtering. |
+| `create_task` | Add a new System of Record entry. |
+| `update_task` | Modify titles, descriptions, or status. |
+| `delete_task` | Remove a specific task by ID. |
+| `clearCompletedTasks` | Bulk destructive action (Interrupt-aware). |
+| `navigateToView` | Agent can programmatically move the user's UI. |
+| `getDailyBriefing` | Multi-step reasoning tool for task summarization. |
 
 ---
 
-## 🚀 Getting Started
+## 🚀 Deployment & Setup
 
 ### Prerequisites
-- **Docker** and **Docker Compose**
-- **Google Gemini API Key** (Get one at [aistudio.google.com](https://aistudio.google.com))
+-   **Docker Desktop**
+-   **Google Gemini API Key** ([Get it here](https://aistudio.google.com))
 
-### 1. Environment Configuration
-
-Create a `.env` file in the **root** directory:
+### 1. Configuration
+Create a `.env` file in the root directory:
 
 ```bash
-# LLM
-GEMINI_API_KEY=your_gemini_api_key_here
+# AI Engine
+GEMINI_API_KEY=your_key_here
 
-# Local Langfuse (Defaults for local Docker setup)
+# Observability (Defaults for local Docker)
 LANGFUSE_PUBLIC_KEY=pk-lf-b64212b7-6190-4a6b-908f-7cc9fa2e0883
 LANGFUSE_SECRET_KEY=sk-lf-de9ec0b5-0dd1-41dd-802a-5fcffa315e44
 ```
 
-### 2. Start the Stack
-
+### 2. Start the Suite
 ```bash
 docker compose up -d --build
 ```
 
-### 3. Access the Services
-
-- **Frontend**: [http://localhost:4000](http://localhost:4000)
-- **BFF API**: [http://localhost:4001](http://localhost:4001)
-- **Langfuse Dashboard**: [http://localhost:3000](http://localhost:3000)
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|---|---|
-| **Frontend** | React 19, Vite, Tailwind CSS 4, Framer Motion |
-| **Orchestration** | Node.js, Express, SSE (Server-Sent Events) |
-| **AI Model** | Google Gemini 2.5 Flash (`@google/generative-ai`) |
-| **Database** | PostgreSQL 15 |
-| **Observability** | Langfuse (Self-hosted via Docker) |
-| **Type Safety** | Zod, TypeScript Workspaces |
+### 3. Service Map
+-   **Frontend:** [http://localhost:4000](http://localhost:4000)
+-   **AI BFF:** [http://localhost:4001](http://localhost:4001)
+-   **MCP Gateway:** [http://localhost:4003](http://localhost:4003)
+-   **Langfuse:** [http://localhost:3000](http://localhost:3000)
 
 ---
 
-## 🗺 Roadmap
+## 🗺 Roadmap to Enterprise Suite
 
-We are evolving ZenDo to showcase the cutting edge of AI Engineering:
-1. **Model Context Protocol (MCP)** — Enabling ZenDo to act as both an MCP server and client.
-2. **Multi-Agent Router** — Moving from a single agent to a specialized swarm.
-3. **Semantic Memory** — Integrating `pgvector` for long-term task RAG.
-4. **LLM-as-a-Judge** — Automated evaluations using Langfuse.
+- [ ] **Multi-Agent Supervisor:** Route requests between specialized Task, CRM, and HR agents.
+- [ ] **RBAC for AI:** Connect MCP tool availability to user JWT permissions.
+- [ ] **Semantic Memory:** Vectorized task search using `pgvector`.
+- [ ] **MCP Resource Templates:** Expose large datasets as MCP Resources rather than raw prompt injections.
+- [ ] **Generative UI:** Stream React component definitions from the agent for custom dashboard widgets.
