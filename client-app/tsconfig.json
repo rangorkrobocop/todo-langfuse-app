@@ -37,7 +37,6 @@
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],
-      "@server/*": ["../server/*"],
       "@shared/*": ["../shared/*"]
     },
 
@@ -51,6 +50,6 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "include": ["src/**/*", "../server/**/*", "../shared/**/*"],
+  "include": ["src/**/*", "../shared/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts"]
 }

@@ -2,8 +2,7 @@
   "name": "zendo-ai-first-app-platform",
   "author": "New Author",
   "workspaces": [
-    "server",
-    "client",
+    "client-app",
     "exercises",
     "shared",
     "bff-service",

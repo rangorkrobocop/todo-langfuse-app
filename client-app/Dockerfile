@@ -8,7 +8,7 @@ COPY package.json package-lock.json ./
 
 # Copy all package files to allow a proper root install
 COPY shared/package.json ./shared/
-COPY client/package.json ./client/
+COPY client-app/package.json ./client-app/
 COPY tasks-service/package.json ./tasks-service/
 COPY bff-service/package.json ./bff-service/
 
@@ -17,16 +17,16 @@ RUN npm ci
 
 # Copy source code
 COPY shared ./shared
-COPY client ./client
+COPY client-app ./client-app
 
 # Build the client
-WORKDIR /app/client
+WORKDIR /app/client-app
 RUN npm install @tailwindcss/oxide-linux-arm64-gnu@4.0.13 @tailwindcss/oxide-linux-x64-gnu@4.0.13 lightningcss-linux-arm64-gnu lightningcss-linux-x64-gnu --no-save --force
 RUN npm run build
 
 # Production stage
 FROM nginx:stable-alpine
-COPY --from=build /app/client/dist /usr/share/nginx/html
+COPY --from=build /app/client-app/dist /usr/share/nginx/html
 
 # Custom nginx config to support SPA routing
 RUN echo 'server { \

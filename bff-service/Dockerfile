@@ -7,7 +7,7 @@ COPY package.json package-lock.json ./
 
 # Copy all package files to allow a proper root install
 COPY shared/package.json ./shared/
-COPY client/package.json ./client/
+COPY client-app/package.json ./client-app/
 COPY tasks-service/package.json ./tasks-service/
 COPY bff-service/package.json ./bff-service/
 

@@ -89,20 +89,24 @@ Click the **Sparkle (✨)** button in the bottom right corner to toggle the **AI
 
 ```
 zendo-ai-first-app-platform/
-├── zendo/         # AI Architecture specifications
-├── client/          # React + Vite frontend
+├── zendo/           # AI Architecture specifications
+├── client-app/      # React + Vite frontend
 │   └── src/
 │       ├── components/revamp/   # Zen Minimalist components
 │       ├── application.tsx      # Single-column layout + floating assistant
 │       └── utilities/ag-ui.ts   # SSE client for agent streaming
 │
-├── server/          # Express + PostgreSQL backend
+├── bff-service/     # Express API Gateway & AI Orchestration layer
 │   └── src/
 │       ├── agent.ts     # Gemini tool-calling engine & Langfuse tracing
-│       ├── server.ts    # REST API routes + /agent endpoint
-│       └── index.ts     # Server entry point
+│       └── server.ts    # Proxies CRUD tasks to tasks-service & handles /api/agent
 │
-└── docker-compose.yml # Orchestrates Client, Server, and Langfuse
+├── tasks-service/   # Express + PostgreSQL Core Data Microservice
+│   └── src/
+│       ├── database.ts  # Database connection and queries
+│       └── server.ts    # REST API for task CRUD operations
+│
+└── docker-compose.yml # Orchestrates Client, BFF, Tasks, and Langfuse
 ```
 
 ---
