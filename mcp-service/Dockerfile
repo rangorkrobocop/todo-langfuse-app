@@ -8,7 +8,6 @@ COPY package.json package-lock.json ./
 # Copy all package files
 COPY shared/package.json ./shared/
 COPY client-app/package.json ./client-app/
-COPY tasks-service/package.json ./tasks-service/
 COPY bff-service/package.json ./bff-service/
 COPY mcp-service/package.json ./mcp-service/
 COPY agent-service/package.json ./agent-service/
