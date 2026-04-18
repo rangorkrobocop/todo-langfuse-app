@@ -172,10 +172,14 @@ docker compose restart agent-service
 
 ---
 
-## Roadmap
+## Strategy & Roadmap
 
-- [ ] Multi-agent supervisor — route intents to specialized Task, CRM, and HR agents
-- [ ] RBAC for AI — bind MCP tool availability to user JWT permissions
-- [ ] Semantic task search — `pgvector` embeddings on task descriptions
-- [ ] MCP Resources — expose large datasets as MCP Resources instead of prompt injection
-- [ ] Generative UI — stream React component definitions from the agent for custom widgets
+Detailed technical strategy documents live in [`/zendo`](./zendo/):
+
+| Document | Topic | Status |
+|---|---|---|
+| [01 — AG-UI Protocol](./zendo/01-ag-ui-protocol.md) | SSE event streaming, JSON Patch, interrupt safety, generative UI | In Progress |
+| [02 — Model Context Protocol](./zendo/02-model-context-protocol.md) | MCP server exposure, external tool integration (Claude Desktop, Cursor) | Planned |
+| [03 — Multi-Agent Orchestration](./zendo/03-multi-agent-orchestration.md) | Supervisor router, specialized sub-agents, TypeScript state graphs | Planned |
+| [04 — LLMOps & Evaluations](./zendo/04-llmops-and-evaluations.md) | Human feedback, LLM-as-a-Judge, prompt A/B testing via Langfuse | Planned |
+| [05 — Semantic Memory & RAG](./zendo/05-semantic-memory-rag.md) | `pgvector` embeddings, semantic task search, user preference memory | Planned |
