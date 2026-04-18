@@ -21,7 +21,6 @@ graph TD
     Agent["Agent Service :4005<br/>Gemini 2.5 Flash + MCP Client"]
 
     Agent -->|"MCP listTools / callTool"| MCP
-    Agent -->|"state snapshot + diff"| Tasks
     Agent -->|"LLM chat + tool loop"| Gemini["Google Gemini API"]
 
     MCP["MCP Service :4003<br/>Tool Registry (7 tools)"]
