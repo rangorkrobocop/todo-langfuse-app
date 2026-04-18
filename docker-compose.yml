@@ -55,7 +55,6 @@ services:
     environment:
       - NODE_ENV=development
       - PORT=4005
-      - TASKS_SERVICE_URL=http://tasks-service:4002
       - MCP_SERVICE_URL=http://mcp-service:4003
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}

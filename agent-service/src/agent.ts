@@ -6,7 +6,6 @@ import { SSEClientTransport } from "@modelcontextprotocol/sdk/client/sse.js";
 import type { Response } from 'express';
 import * as jsonpatch from 'fast-json-patch/index.mjs';
 
-const TASKS_SERVICE_URL = process.env.TASKS_SERVICE_URL || 'http://localhost:4002';
 const MCP_SERVICE_URL = process.env.MCP_SERVICE_URL || 'http://localhost:4003';
 
 const ai = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || '');
@@ -68,9 +67,9 @@ export const handleAgentAction = async (intent: string, res: Response) => {
             }
         ];
 
-        // 3. Setup Gemini with discovered tools
-        const currentTasksResponse = await fetch(`${TASKS_SERVICE_URL}/tasks`);
-        let currentGlobalState = await currentTasksResponse.json();
+        // 3. Setup Gemini with discovered tools — fetch initial state via MCP
+        const initialStateResult = await mcpClient.callTool({ name: 'get_tasks', arguments: {} });
+        let currentGlobalState = JSON.parse((initialStateResult.content[0] as any).text);
 
         sendEvent({ type: 'StateSnapshot', state: currentGlobalState });
 
@@ -127,9 +126,9 @@ export const handleAgentAction = async (intent: string, res: Response) => {
 
                         sendEvent({ type: 'ToolCallResult', toolCallId: `call_${toolCall.name}`, result: textResult });
 
-                        // Sync state after tool
-                        const newStateRes = await fetch(`${TASKS_SERVICE_URL}/tasks`);
-                        const newState = await newStateRes.json();
+                        // Sync state after tool — via MCP
+                        const stateResult = await mcpClient.callTool({ name: 'get_tasks', arguments: {} });
+                        const newState = JSON.parse((stateResult.content[0] as any).text);
                         const patch = jsonpatch.compare(currentGlobalState, newState);
                         if (patch.length > 0) {
                             sendEvent({ type: 'StateDelta', patch });
