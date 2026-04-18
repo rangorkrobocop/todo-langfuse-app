@@ -13,6 +13,22 @@ export async function createServer(database: any) {
   app.use(cors());
   app.use(express.json());
 
+  // Optional Langfuse observability
+  if (process.env.LANGFUSE_PUBLIC_KEY) {
+    const { Langfuse } = await import('langfuse');
+    const lf = new Langfuse({
+      publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+      secretKey: process.env.LANGFUSE_SECRET_KEY,
+      baseUrl: process.env.LANGFUSE_BASEURL || 'https://cloud.langfuse.com'
+    });
+    app.use((req, res, next) => {
+      const start = Date.now();
+      const trace = lf.trace({ name: `${req.method} ${req.path}`, tags: ['tasks-service'] });
+      res.on('finish', () => trace.update({ output: { status: res.statusCode, duration: Date.now() - start } }));
+      next();
+    });
+  }
+
   // Statement pre-compilation
   const incompleteTasks = await database.prepare('SELECT * FROM tasks whERE completed = 0');
   const completedTasks = await database.prepare('SELECT * FROM tasks WHERE completed = 1');

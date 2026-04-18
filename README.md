@@ -1,104 +1,170 @@
-# 🧘 ZenDo — Enterprise AI-First App Platform
+# ZenDo — AI-First Platform
 
-ZenDo is a state-of-the-art reference architecture for building **Enterprise Suites** that are AI-native from the ground up. It demonstrates how to build a production-ready, multi-service application where AI agents and traditional UIs coexist seamlessly using the **Model Context Protocol (MCP)** and **Agentic UI (AG-UI)** standards.
+A reference implementation for building AI-native enterprise applications using **Model Context Protocol (MCP)** and **AG-UI** standards. Fully containerized, production-shaped microservices monorepo.
 
 ---
 
-## 🏗 High-Level Architecture
+## Architecture
 
-ZenDo is designed around the principle of **Decoupled Intelligence**. The AI logic (BFF) is separated from the Domain logic (Systems of Record) by an MCP Gateway, allowing the platform to scale to dozens of services without AI bloat.
+```
+Client (4000)
+    │  REST + SSE
+    ▼
+BFF (4001) — thin gateway
+    │ /tasks/*              │ /api/agent (SSE pipe)
+    ▼                       ▼
+Tasks Service (4002)    Agent Service (4005)
+                            │ MCP/SSE      │ Gemini API
+                            ▼              ▼
+                        MCP Service (4003)
+                            │
+                        Tasks Service (4002)
 
-```mermaid
-graph TD
-    Client[Client App: React 19] <-->|Standard REST & AG-UI SSE| BFF[BFF Service: AI Orchestrator]
-    BFF <-->|MCP Protocol| MCP[MCP Gateway: Tool Registry]
-    BFF <-->|LLM Chat| Gemini[Google Gemini 2.5 Flash]
-    BFF -->|Telemetry| Langfuse[Langfuse: Observability]
-    
-    subgraph "Systems of Record"
-        MCP <-->|Tools| Tasks[Tasks Service]
-        BFF <-->|Hybrid UI Data| Tasks
-        Tasks <--> DB[(PostgreSQL)]
-    end
+Langfuse (3000) ← traces from Agent, Tasks, MCP services
 ```
 
-### 🛰 The Services
+### Services
 
-| Service | Role | Technology |
+| Service | Port | Role |
 |---|---|---|
-| **`client-app/`** | Hybrid UI | React 19, Vite, Tailwind CSS 4, Framer Motion |
-| **`bff-service/`** | AI Orchestrator | Node.js, Express, MCP Client, SSE Streaming |
-| **`mcp-service/`** | Tool Gateway | MCP SDK, Express (SSE Transport) |
-| **`tasks-service/`** | System of Record | Node.js, PostgreSQL 15 |
-| **`shared/`** | Contract Layer | Zod Schemas, TypeScript Workspaces |
+| `client-app` | 4000 | React 19 + Vite + Tailwind CSS 4 hybrid UI |
+| `bff-service` | 4001 | Thin gateway — proxies CRUD and pipes Agent SSE |
+| `tasks-service` | 4002 | CRUD system of record — PostgreSQL 15 + SQLite fallback |
+| `mcp-service` | 4003 | MCP tool registry — 7 tools over SSE transport |
+| `agent-service` | 4005 | AI orchestrator — Gemini 2.5 Flash + MCP client loop |
+| `langfuse` | 3000 | Self-hosted AI observability |
 
 ---
 
-## 🧠 AI Strategy: The Hybrid Approach
+## How It Works
 
-ZenDo implements a **Progressive Enhancement** model for AI:
-1.  **Web 3.0 Standard:** Users can use the app like a standard SaaS—clicking buttons, filling forms, and managing tasks manually.
-2.  **AI-Native (AG-UI):** A floating glassmorphic assistant can "see" the current state and execute tools on the user's behalf.
-3.  **Unified State:** Whether a human clicks "Delete" or the Agent calls `delete_task`, the frontend state remains in sync via **JSON Patch (`StateDelta`)** updates streamed over SSE.
+### Agent Loop
 
-### 🛡 The AG-UI Protocol
-ZenDo implements the Agentic UI protocol to ensure transparency and safety:
--   **Reasoning Traces:** Gemini streams its internal logic inside `<thought>` tags, which the UI renders as collapsible "Reasoning" blocks.
--   **Interrupt Safety:** Destructive tools (like clearing all tasks) require a "confirmed" flag, allowing the UI to interrupt the agent and ask for human permission.
+1. User types intent in the chat console
+2. Client POSTs `{ intent }` to BFF `/api/agent`
+3. BFF pipes the request to Agent Service and streams the SSE response back
+4. Agent Service:
+   - Connects to MCP Service as an MCP client
+   - Calls `listTools()` — dynamically discovers all 7 tools
+   - Sends initial task state snapshot to client (`StateSnapshot`)
+   - Runs a Gemini 2.5 Flash chat loop with the discovered tools
+   - Streams `<thought>` blocks as reasoning events, text as message events
+   - On each tool call: executes via MCP, diffs state with JSON Patch, streams `StateDelta`
+   - Loops until Gemini stops requesting tool calls
+5. Client patches its local state in real time — no full refetch needed
 
----
+### AG-UI Protocol
 
-## 🛠 Enterprise Tools (MCP Registry)
+Events streamed over SSE follow the AG-UI standard:
 
-The **`mcp-service`** dynamically exposes these tools to the Agent. New services can be added to the registry without touching the BFF logic.
-
-| Tool Name | Capability |
+| Event | Meaning |
 |---|---|
-| `get_tasks` | Fetch tasks with optional completion filtering. |
-| `create_task` | Add a new System of Record entry. |
-| `update_task` | Modify titles, descriptions, or status. |
-| `delete_task` | Remove a specific task by ID. |
-| `clearCompletedTasks` | Bulk destructive action (Interrupt-aware). |
-| `navigateToView` | Agent can programmatically move the user's UI. |
-| `getDailyBriefing` | Multi-step reasoning tool for task summarization. |
+| `RunStarted` | Agent loop begins |
+| `StateSnapshot` | Full task list at run start |
+| `ReasoningMessageStart/Content/End` | Gemini `<thought>` blocks |
+| `TextMessageStart/Content/End` | Final assistant text |
+| `ToolCallStart` | Tool invocation begins |
+| `ToolCallResult` | Tool returned a result |
+| `StateDelta` | JSON Patch to update client state |
+| `RunFinished` | Loop complete |
+| `RunError` | Unrecoverable error |
+
+### MCP Tools
+
+The `mcp-service` exposes these tools. The agent discovers them dynamically at runtime — no hardcoding in the agent.
+
+| Tool | Description |
+|---|---|
+| `get_tasks` | List tasks, optionally filtered by completion status |
+| `create_task` | Create a new task |
+| `update_task` | Update title, description, or completed status |
+| `delete_task` | Delete a task by ID |
+| `clearCompletedTasks` | Bulk-delete all completed tasks (requires `confirmed: true`) |
+| `navigateToView` | Programmatically navigate the client UI |
+| `getDailyBriefing` | Summarize current incomplete tasks |
+
+### Observability
+
+- **Agent Service** — full Langfuse trace per agent run, tagged `gemini`, `agent`, `mcp`
+- **Tasks Service** — optional per-request trace (activates when `LANGFUSE_PUBLIC_KEY` is set)
+- **MCP Service** — per-tool-call span with input args, output, and error level
 
 ---
 
-## 🚀 Deployment & Setup
+## Setup
 
 ### Prerequisites
--   **Docker Desktop**
--   **Google Gemini API Key** ([Get it here](https://aistudio.google.com))
 
-### 1. Configuration
-Create a `.env` file in the root directory:
+- Docker Desktop
+- Google Gemini API key — [aistudio.google.com](https://aistudio.google.com)
+- Langfuse keys (can self-generate after first run)
+
+### 1. Configure environment
+
+Create `.env` in the repo root:
 
 ```bash
-# AI Engine
-GEMINI_API_KEY=your_key_here
+GEMINI_API_KEY=your_gemini_key_here
 
-# Observability (Defaults for local Docker)
-LANGFUSE_PUBLIC_KEY=pk-lf-b64212b7-6190-4a6b-908f-7cc9fa2e0883
-LANGFUSE_SECRET_KEY=sk-lf-de9ec0b5-0dd1-41dd-802a-5fcffa315e44
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
 ```
 
-### 2. Start the Suite
+To get Langfuse keys: start the stack once, open http://localhost:3000, create an account and a project, then copy the keys into `.env` and restart.
+
+### 2. Start
+
 ```bash
 docker compose up -d --build
 ```
 
-### 3. Service Map
--   **Frontend:** [http://localhost:4000](http://localhost:4000)
--   **AI BFF:** [http://localhost:4001](http://localhost:4001)
--   **MCP Gateway:** [http://localhost:4003](http://localhost:4003)
--   **Langfuse:** [http://localhost:3000](http://localhost:3000)
+All 8 containers start: `tasks-db`, `tasks-service`, `mcp-service`, `agent-service`, `bff-service`, `client`, `langfuse-service`, `langfuse-db`.
+
+### 3. Open
+
+| URL | What |
+|---|---|
+| http://localhost:4000 | App UI |
+| http://localhost:3000 | Langfuse observability |
 
 ---
 
-## 🗺 Roadmap to Enterprise Suite
+## Stack
 
-- [ ] **Multi-Agent Supervisor:** Route requests between specialized Task, CRM, and HR agents.
-- [ ] **RBAC for AI:** Connect MCP tool availability to user JWT permissions.
-- [ ] **Semantic Memory:** Vectorized task search using `pgvector`.
-- [ ] **MCP Resource Templates:** Expose large datasets as MCP Resources rather than raw prompt injections.
-- [ ] **Generative UI:** Stream React component definitions from the agent for custom dashboard widgets.
+**Backend** — Node.js 20, Express, TypeScript, `tsx`
+
+**AI** — Google Gemini 2.5 Flash (`@google/generative-ai`), MCP SDK (`@modelcontextprotocol/sdk`), Langfuse, `fast-json-patch`
+
+**Frontend** — React 19, Vite 6, Tailwind CSS 4, Framer Motion
+
+**Database** — PostgreSQL 15 (Docker), SQLite (local dev fallback)
+
+**Infrastructure** — Docker Compose, Nginx (client), npm workspaces
+
+---
+
+## Local Development
+
+```bash
+# Install all workspace deps from root
+npm install
+
+# Run each service independently (requires services to be up or env vars set)
+cd tasks-service && npm run dev   # :4002
+cd mcp-service   && npm run dev   # :4003
+cd agent-service && npm run dev   # :4005
+cd bff-service   && npm run dev   # :4001
+cd client-app    && npm run dev   # :5173
+```
+
+Database: set `DATABASE_URL=postgresql://...` for Postgres or omit for SQLite.
+
+---
+
+## Roadmap
+
+- [ ] Multi-agent supervisor — route intents to specialized Task, CRM, and HR agents
+- [ ] RBAC for AI — bind MCP tool availability to user JWT permissions
+- [ ] Semantic task search — `pgvector` embeddings on task descriptions
+- [ ] MCP Resources — expose large datasets as MCP Resources instead of prompt injection
+- [ ] Generative UI — stream React component definitions from the agent for custom widgets

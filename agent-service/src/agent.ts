@@ -19,7 +19,7 @@ const langfuse = new Langfuse({
 
 /**
  * Handles agent interactions by processing user intent and managing autonomous tool execution.
- * Now acts as an MCP Client.
+ * Acts as an MCP Client connecting to the MCP service.
  */
 export const handleAgentAction = async (intent: string, res: Response) => {
     res.writeHead(200, {
@@ -45,7 +45,7 @@ export const handleAgentAction = async (intent: string, res: Response) => {
     // 1. Setup MCP Client
     const transport = new SSEClientTransport(new URL(`${MCP_SERVICE_URL}/sse`));
     const mcpClient = new Client({
-        name: "zendo-bff-client",
+        name: "zendo-agent-client",
         version: "1.0.0"
     }, {
         capabilities: {}
@@ -53,10 +53,10 @@ export const handleAgentAction = async (intent: string, res: Response) => {
 
     try {
         await mcpClient.connect(transport);
-        
+
         // 2. Discover Tools dynamically from MCP
         const { tools: mcpTools } = await mcpClient.listTools();
-        
+
         // Convert MCP Tools to Gemini Tools
         const geminiTools = [
             {
@@ -71,16 +71,16 @@ export const handleAgentAction = async (intent: string, res: Response) => {
         // 3. Setup Gemini with discovered tools
         const currentTasksResponse = await fetch(`${TASKS_SERVICE_URL}/tasks`);
         let currentGlobalState = await currentTasksResponse.json();
-        
+
         sendEvent({ type: 'StateSnapshot', state: currentGlobalState });
 
-        const systemInstruction = `You are an AG-UI compliant task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(currentGlobalState)}. 
-            
+        const systemInstruction = `You are an AG-UI compliant task management assistant. Here are the user's current incomplete tasks: ${JSON.stringify(currentGlobalState)}.
+
             IMPORTANT:
             1. REASONING FIRST: Use <thought></thought> tags for planning.
             2. TOOL SUMMARIES: Always confirm actions to the user.
             3. You have access to tools discovered via MCP.`;
-            
+
         const model = ai.getGenerativeModel({
             model: 'gemini-2.5-flash',
             tools: geminiTools,
@@ -93,10 +93,15 @@ export const handleAgentAction = async (intent: string, res: Response) => {
         let inThoughtTag = false;
         let streamBuffer = '';
 
+        // Fix: declare loop-control variables before the while loop
+        let isProcessing = true;
+        let currentInput: any = intent;
+        let finalResponseText = '';
+
         while (isProcessing) {
             isProcessing = false;
             const toolResponses: any[] = [];
-            
+
             const interaction = await chat.sendMessageStream(currentInput);
 
             for await (const chunk of interaction.stream) {
@@ -121,7 +126,7 @@ export const handleAgentAction = async (intent: string, res: Response) => {
                         });
 
                         sendEvent({ type: 'ToolCallResult', toolCallId: `call_${toolCall.name}`, result: textResult });
-                        
+
                         // Sync state after tool
                         const newStateRes = await fetch(`${TASKS_SERVICE_URL}/tasks`);
                         const newState = await newStateRes.json();
@@ -206,14 +211,14 @@ export const handleAgentAction = async (intent: string, res: Response) => {
                     sendEvent({ type: 'TextMessageContent', messageId: `msg_${Date.now()}`, delta: streamBuffer });
                     finalResponseText += streamBuffer;
                 } else {
-                     sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: streamBuffer });
+                    sendEvent({ type: 'ReasoningMessageContent', messageId: `reason_${Date.now()}`, delta: streamBuffer });
                 }
                 streamBuffer = '';
             }
 
             if (textStarted && !isProcessing) {
-                 sendEvent({ type: 'TextMessageEnd', messageId: `msg_${Date.now()}` });
-                 textStarted = false;
+                sendEvent({ type: 'TextMessageEnd', messageId: `msg_${Date.now()}` });
+                textStarted = false;
             }
 
             if (toolResponses.length > 0) {
@@ -222,6 +227,7 @@ export const handleAgentAction = async (intent: string, res: Response) => {
             }
         }
 
+        trace.update({ output: finalResponseText });
         sendEvent({ type: 'RunFinished', runId, outcome: 'completed' });
     } catch (error: any) {
         console.error('Agent error:', error);

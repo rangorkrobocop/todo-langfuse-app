@@ -7,6 +7,7 @@
     "shared",
     "bff-service",
     "tasks-service",
-    "mcp-service"
+    "mcp-service",
+    "agent-service"
   ]
 }

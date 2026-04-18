@@ -18,12 +18,12 @@ RUN npm ci
 
 # Copy source code
 COPY shared ./shared
-COPY bff-service ./bff-service
+COPY agent-service ./agent-service
 
-WORKDIR /app/bff-service
+WORKDIR /app/agent-service
 
 # Expose the server port
-EXPOSE 4001
+EXPOSE 4005
 
 # Start the server in dev mode
 CMD ["npm", "run", "dev"]

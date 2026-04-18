@@ -26,6 +26,9 @@ services:
       - NODE_ENV=development
       - PORT=4002
       - DATABASE_URL=postgresql://postgres:postgres@tasks-db:5432/postgres
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_BASEURL=http://langfuse-service:3000
 
   bff-service:
     build:
@@ -35,9 +38,23 @@ services:
       - "4001:4001"
     depends_on:
       - tasks-service
+      - agent-service
+    environment:
+      - NODE_ENV=development
+      - TASKS_SERVICE_URL=http://tasks-service:4002
+      - AGENT_SERVICE_URL=http://agent-service:4005
+
+  agent-service:
+    build:
+      context: .
+      dockerfile: agent-service/Dockerfile
+    ports:
+      - "4005:4005"
+    depends_on:
       - mcp-service
     environment:
       - NODE_ENV=development
+      - PORT=4005
       - TASKS_SERVICE_URL=http://tasks-service:4002
       - MCP_SERVICE_URL=http://mcp-service:4003
       - GEMINI_API_KEY=${GEMINI_API_KEY}
@@ -57,6 +74,9 @@ services:
       - NODE_ENV=development
       - PORT=4003
       - TASKS_SERVICE_URL=http://tasks-service:4002
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
+      - LANGFUSE_BASEURL=http://langfuse-service:3000
 
   client:
     build:

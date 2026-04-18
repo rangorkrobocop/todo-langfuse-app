@@ -8,6 +8,17 @@ import "dotenv/config";
 const TASKS_SERVICE_URL = process.env.TASKS_SERVICE_URL || "http://localhost:4002";
 const PORT = process.env.PORT || 4003;
 
+// Optional Langfuse observability
+let lf: any = null;
+if (process.env.LANGFUSE_PUBLIC_KEY) {
+  const { Langfuse } = await import("langfuse");
+  lf = new Langfuse({
+    publicKey: process.env.LANGFUSE_PUBLIC_KEY,
+    secretKey: process.env.LANGFUSE_SECRET_KEY,
+    baseUrl: process.env.LANGFUSE_BASEURL || "https://cloud.langfuse.com"
+  });
+}
+
 const app = express();
 app.use(cors());
 
@@ -119,26 +130,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
 server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
 
+  const trace = lf?.trace({ name: `mcp_tool:${name}`, tags: ["mcp-service"] });
+  const span = trace?.span({ name, input: args });
+  let toolResult: any;
+
   try {
     if (name === "get_tasks") {
       const url = new URL(`${TASKS_SERVICE_URL}/tasks`);
       if (args?.completed !== undefined) url.searchParams.set("completed", String(args.completed));
       const res = await fetch(url.toString());
       const data = await res.json();
-      return { content: [{ type: "text", text: JSON.stringify(data) }] };
-    }
-
-    if (name === "create_task") {
+      toolResult = { content: [{ type: "text", text: JSON.stringify(data) }] };
+    } else if (name === "create_task") {
       const res = await fetch(`${TASKS_SERVICE_URL}/tasks`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(args),
       });
       const data = await res.json();
-      return { content: [{ type: "text", text: data.message || "Task created" }] };
-    }
-
-    if (name === "update_task") {
+      toolResult = { content: [{ type: "text", text: data.message || "Task created" }] };
+    } else if (name === "update_task") {
       const { id, ...updates } = args as any;
       const res = await fetch(`${TASKS_SERVICE_URL}/tasks/${id}`, {
         method: "PUT",
@@ -146,47 +157,40 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         body: JSON.stringify(updates),
       });
       const data = await res.json();
-      return { content: [{ type: "text", text: data.message || "Task updated" }] };
-    }
-
-    if (name === "delete_task") {
+      toolResult = { content: [{ type: "text", text: data.message || "Task updated" }] };
+    } else if (name === "delete_task") {
       const res = await fetch(`${TASKS_SERVICE_URL}/tasks/${(args as any).id}`, {
         method: "DELETE",
       });
       const data = await res.json();
-      return { content: [{ type: "text", text: data.message || "Task deleted" }] };
-    }
-
-    if (name === "clearCompletedTasks") {
+      toolResult = { content: [{ type: "text", text: data.message || "Task deleted" }] };
+    } else if (name === "clearCompletedTasks") {
       if ((args as any)?.confirmed) {
-        // Fetch completed tasks
         const url = new URL(`${TASKS_SERVICE_URL}/tasks`);
         url.searchParams.set("completed", "true");
         const res = await fetch(url.toString());
         const completedTasks = await res.json();
-        
-        // Delete them individually
         for (const task of completedTasks) {
           await fetch(`${TASKS_SERVICE_URL}/tasks/${task.id}`, { method: "DELETE" });
         }
-        return { content: [{ type: "text", text: "All completed tasks have been deleted." }] };
+        toolResult = { content: [{ type: "text", text: "All completed tasks have been deleted." }] };
       } else {
-         return { content: [{ type: "text", text: "Requires confirmation." }] };
+        toolResult = { content: [{ type: "text", text: "Requires confirmation." }] };
       }
-    }
-
-    if (name === "navigateToView") {
-      return { content: [{ type: "text", text: `Successfully instructed the UI to navigate to ${((args as any).view) || "unknown"}.` }] };
-    }
-
-    if (name === "getDailyBriefing") {
+    } else if (name === "navigateToView") {
+      toolResult = { content: [{ type: "text", text: `Successfully instructed the UI to navigate to ${((args as any).view) || "unknown"}.` }] };
+    } else if (name === "getDailyBriefing") {
       const res = await fetch(`${TASKS_SERVICE_URL}/tasks`);
       const currentTasks = await res.json();
-      return { content: [{ type: "text", text: `System Data: Current incomplete tasks are ${currentTasks.length}. Titles: ${currentTasks.map((t: any) => t.title).join(', ')}. Please summarize this for the user now.` }] };
+      toolResult = { content: [{ type: "text", text: `System Data: Current incomplete tasks are ${currentTasks.length}. Titles: ${currentTasks.map((t: any) => t.title).join(', ')}. Please summarize this for the user now.` }] };
+    } else {
+      throw new Error(`Tool not found: ${name}`);
     }
 
-    throw new Error(`Tool not found: ${name}`);
+    span?.end({ output: toolResult });
+    return toolResult;
   } catch (error: any) {
+    span?.end({ output: { error: error.message }, level: "ERROR" });
     return {
       isError: true,
       content: [{ type: "text", text: error.message }],
