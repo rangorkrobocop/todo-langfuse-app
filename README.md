@@ -6,21 +6,34 @@ A reference implementation for building AI-native enterprise applications using 
 
 ## Architecture
 
-```
-Client (4000)
-    │  REST + SSE
-    ▼
-BFF (4001) — thin gateway
-    │ /tasks/*              │ /api/agent (SSE pipe)
-    ▼                       ▼
-Tasks Service (4002)    Agent Service (4005)
-                            │ MCP/SSE      │ Gemini API
-                            ▼              ▼
-                        MCP Service (4003)
-                            │
-                        Tasks Service (4002)
+```mermaid
+graph TD
+    Client["Client App :4000<br/>React 19 + AG-UI"]
 
-Langfuse (3000) ← traces from Agent, Tasks, MCP services
+    Client -->|"REST CRUD"| BFF
+    Client -->|"SSE stream"| BFF
+
+    BFF["BFF Service :4001<br/>Thin Gateway"]
+
+    BFF -->|"/tasks proxy"| Tasks
+    BFF -->|"/api/agent SSE pipe"| Agent
+
+    Agent["Agent Service :4005<br/>Gemini 2.5 Flash + MCP Client"]
+
+    Agent -->|"MCP listTools / callTool"| MCP
+    Agent -->|"state snapshot + diff"| Tasks
+    Agent -->|"LLM chat + tool loop"| Gemini["Google Gemini API"]
+
+    MCP["MCP Service :4003<br/>Tool Registry (7 tools)"]
+    MCP -->|"CRUD"| Tasks
+
+    Tasks["Tasks Service :4002<br/>System of Record"]
+    Tasks -->|"SQL"| DB[("PostgreSQL :5433")]
+
+    Agent -->|"traces"| Langfuse
+    Tasks -->|"request spans"| Langfuse
+    MCP -->|"tool spans"| Langfuse
+    Langfuse["Langfuse :3000<br/>AI Observability"]
 ```
 
 ### Services
@@ -97,7 +110,7 @@ The `mcp-service` exposes these tools. The agent discovers them dynamically at r
 
 - Docker Desktop
 - Google Gemini API key — [aistudio.google.com](https://aistudio.google.com)
-- Langfuse keys (can self-generate after first run)
+- Langfuse keys (can self-generate after first run — see below)
 
 ### 1. Configure environment
 
@@ -110,15 +123,15 @@ LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
 ```
 
-To get Langfuse keys: start the stack once, open http://localhost:3000, create an account and a project, then copy the keys into `.env` and restart.
+To get Langfuse keys: start the stack once, open http://localhost:3000, create an account and project, copy the keys into `.env`, then run `docker compose up -d` again.
 
-### 2. Start
+### 2. Start everything
 
 ```bash
 docker compose up -d --build
 ```
 
-All 8 containers start: `tasks-db`, `tasks-service`, `mcp-service`, `agent-service`, `bff-service`, `client`, `langfuse-service`, `langfuse-db`.
+Starts all 8 containers: `tasks-db`, `tasks-service`, `mcp-service`, `agent-service`, `bff-service`, `client`, `langfuse-service`, `langfuse-db`.
 
 ### 3. Open
 
@@ -143,21 +156,20 @@ All 8 containers start: `tasks-db`, `tasks-service`, `mcp-service`, `agent-servi
 
 ---
 
-## Local Development
+## Development
+
+All development is done via Docker Compose. There is no separate local dev mode — the services run in watch mode inside containers so code changes hot-reload automatically.
 
 ```bash
-# Install all workspace deps from root
-npm install
+# Rebuild and restart after dependency changes
+docker compose up -d --build
 
-# Run each service independently (requires services to be up or env vars set)
-cd tasks-service && npm run dev   # :4002
-cd mcp-service   && npm run dev   # :4003
-cd agent-service && npm run dev   # :4005
-cd bff-service   && npm run dev   # :4001
-cd client-app    && npm run dev   # :5173
+# View logs for a specific service
+docker compose logs -f agent-service
+
+# Restart a single service after code changes (watch mode handles this automatically)
+docker compose restart agent-service
 ```
-
-Database: set `DATABASE_URL=postgresql://...` for Postgres or omit for SQLite.
 
 ---
 
