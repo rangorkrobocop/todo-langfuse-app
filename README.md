@@ -183,3 +183,9 @@ Detailed technical strategy documents live in [`/zendo`](./zendo/):
 | [03 — Multi-Agent Orchestration](./zendo/03-multi-agent-orchestration.md) | Supervisor router, specialized sub-agents, TypeScript state graphs | Planned |
 | [04 — LLMOps & Evaluations](./zendo/04-llmops-and-evaluations.md) | Human feedback, LLM-as-a-Judge, prompt A/B testing via Langfuse | Planned |
 | [05 — Semantic Memory & RAG](./zendo/05-semantic-memory-rag.md) | `pgvector` embeddings, semantic task search, user preference memory | Planned |
+| [06 — Auth & Multi-Tenancy](./zendo/06-auth-and-multitenancy.md) | JWT gateway, user-scoped task storage, RBAC for destructive MCP tools | Planned |
+| [07 — LLM Provider Portability](./zendo/07-llm-provider-portability.md) | Adapter pattern for Gemini/Claude/OpenAI, env-driven provider swap | Planned |
+| [08 — Reliability & Resilience](./zendo/08-reliability-and-resilience.md) | Retry with backoff, SSE event IDs, idempotent tool calls, circuit breaker | Planned |
+| [09 — Audit Trail](./zendo/09-audit-trail.md) | Append-only compliance log, immutability guarantees, retention policy | Planned |
+| [10 — Testing Strategy](./zendo/10-testing-strategy.md) | MCP tool unit tests, mock-LLM integration tests, prompt regression suite | Planned |
+| [11 — Cost & Quota Management](./zendo/11-cost-and-quota-management.md) | Token budgets, per-user quotas, rate limiting, cost attribution | Planned |
