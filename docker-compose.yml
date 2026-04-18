@@ -23,12 +23,10 @@ services:
       tasks-db:
         condition: service_started
     environment:
-      - NODE_ENV=development
       - PORT=4002
-      - DATABASE_URL=postgresql://postgres:postgres@tasks-db:5432/postgres
-      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY}
-      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY}
-      - LANGFUSE_BASEURL=http://langfuse-service:3000
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://tasks-db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
 
   bff-service:
     build:

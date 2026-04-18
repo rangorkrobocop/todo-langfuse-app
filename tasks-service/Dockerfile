@@ -1,29 +1,22 @@
-FROM node:20-slim
+# ── Stage 1: Build ────────────────────────────────────────────────────────────
+FROM maven:3.9-eclipse-temurin-21-alpine AS builder
 
 WORKDIR /app
 
-# Copy root workspace configuration
-COPY package.json package-lock.json ./
+# Download dependencies first (layer-cached unless pom.xml changes)
+COPY tasks-service/pom.xml .
+RUN mvn dependency:go-offline -q
 
-# Copy all package files to allow a proper root install
-COPY shared/package.json ./shared/
-COPY client-app/package.json ./client-app/
-COPY tasks-service/package.json ./tasks-service/
-COPY bff-service/package.json ./bff-service/
-COPY mcp-service/package.json ./mcp-service/
-COPY agent-service/package.json ./agent-service/
+# Build the fat JAR
+COPY tasks-service/src ./src
+RUN mvn package -DskipTests -q
 
-# Install ALL dependencies at the root
-RUN npm ci
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM eclipse-temurin:21-jre-alpine
 
-# Copy source code
-COPY shared ./shared
-COPY tasks-service ./tasks-service
+WORKDIR /app
+COPY --from=builder /app/target/tasks-service-*.jar app.jar
 
-WORKDIR /app/tasks-service
-
-# Expose the service port
 EXPOSE 4002
 
-# Start the service in dev mode
-CMD ["npm", "run", "dev"]
+ENTRYPOINT ["java", "-jar", "app.jar"]
